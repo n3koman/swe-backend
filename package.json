@@ -1,0 +1,6 @@
+{
+    "scripts": {
+      "start": "gunicorn wsgi:app"
+    }
+  }
+  
