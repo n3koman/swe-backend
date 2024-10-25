@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}My Website{% endblock %}</title>
+
+</head>
+<body>
+<script>
+    var message = "{{ message }}";
+    if (message) {
+        showNotification(message);
+    }
+</script>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('index') }}">Главная</a></li>
+
+                {% if 'user_id' not in session %}
+                    <li><a href="{{ url_for('register_customer') }}">Регистрация как покупатель</a></li>
+                    <li><a href="{{ url_for('register_farmer') }}">Регистрация как фермер</a></li>
+                    <li><a href="{{ url_for('login_customer') }}">Вход как покупатель</a></li>
+                    <li><a href="{{ url_for('login_farmer') }}">Вход как фермер</a></li>
+                {% else %}
+                    <li>Добро пожаловать, {{ session['display_name'] }}!</li>  <!-- Здесь отображаем имя пользователя -->
+                    <li><a href="{{ url_for('logout') }}">Выход</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+
+    </header>
+
+    <div>
+        {% block content %}{% endblock %}
+    </div>
+<div id="notification" style="display: none; position: fixed; top: 10px; right: 10px; background-color: lightgreen; padding: 10px;">
+    {{ message }}
+</div>
+hello word
+<script>
+    // Function to show the notification
+    function showNotification(message) {
+        var notification = document.getElementById('notification');
+        notification.innerText = message;
+        notification.style.display = 'block';
+        setTimeout(function() {
+            notification.style.display = 'none';
+        }, 3000); // Notification will disappear after 3 seconds
+    }
+</script>
+
+<!-- Script to check for messages and display notification -->
+<script>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                showNotification("{{ message }}");
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</script>
+</body>
+ <footer>
+<p>Сайт создан Mansur Rakhimov. Все права защищены © 2028</p>
+    <p>Контакты: mansur@example.com</p>    </footer>
+</html>
