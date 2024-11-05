@@ -23,19 +23,20 @@ def register_farmer():
     try:
         data = request.get_json()
 
-        required_fields = ['name', 'email', 'phone_number', 'farm_address', 'farm_size', 'crops', 'gov_id', 'password']
+        required_fields = ['name', 'email', 'password', 'phone_number', 'farm_address', 'farm_size', 'crops', 'gov_id']
         missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
             return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
 
         name = data['name']
         email = data['email']
+        password = data['password']
         phone_number = data['phone_number']
         farm_address = data['farm_address']
         farm_size = data['farm_size']
         crops = data['crops']
         gov_id = data['gov_id']
-        password = data['password']
+
 
         if User.query.filter((User.email == email) | (User.phone_number == phone_number)).first():
             return jsonify({"error": "Email or phone number is already in use"}), 409
