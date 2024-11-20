@@ -20,7 +20,7 @@ def get_dashboard():
             return jsonify({"error": "User not found"}), 404
 
         # Determine the role and fetch respective dashboard data
-        if user.role == Role.ADMINISTRATOR.value:
+        if user.role == Role.ADMINISTRATOR:
             return get_admin_dashboard()
 
         elif user.role == Role.FARMER:
