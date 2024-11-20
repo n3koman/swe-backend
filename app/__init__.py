@@ -1,23 +1,30 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 from config import Config
-from flask_cors import CORS  # Import CORS
 
+# Initialize extensions
 db = SQLAlchemy()
+jwt = JWTManager()
+
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    # Initialize extensions
     db.init_app(app)
     Migrate(app, db)
+    jwt.init_app(app)
+    CORS(app)
 
-    # Enable CORS for all routes
-    CORS(app)  # This allows requests from any origin. For specific origins: CORS(app, resources={r"/*": {"origins": "https://your-frontend-url.com"}})
-
-    # Register your blueprints (auth routes)
+    # Register blueprints
     from app.routes.auth_routes import auth_bp
-    app.register_blueprint(auth_bp)
+    from app.routes.dashboard_routes import dashboard_bp
+
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 
     return app

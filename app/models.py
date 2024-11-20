@@ -88,6 +88,16 @@ class Product(db.Model):
     description = db.Column(Text, nullable=True)
     farmer_id = db.Column(Integer, db.ForeignKey('farmers.id'), nullable=False)
     images = db.relationship('ProductImage', backref='product', lazy=True)  # Images for the product
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "category": self.category,
+            "price": self.price,
+            "quantity": self.quantity,
+            "description": self.description,
+            "created_at": self.created_at
+        }
 
 
 # ProductImage Model for storing multiple images for each product
@@ -109,6 +119,15 @@ class Order(db.Model):
     updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
     order_items = db.relationship('OrderItem', backref='order', lazy=True)
     delivery = db.relationship('Delivery', backref='order', uselist=False)  # One-to-one with Delivery
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "status": self.status,
+            "total_price": self.total_price,
+            "created_at": self.created_at,
+            "buyer_id": self.buyer_id,
+            "farmer_id": self.farmer_id
+        }
 
 
 # OrderItem Model for individual items in an order
