@@ -119,7 +119,6 @@ def login():
     if user and check_password_hash(user.password, password):
         token = jwt.encode({
             'user_id': user.id,
-            'sub': user.id,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
         }, SECRET_KEY, algorithm='HS256')
 
