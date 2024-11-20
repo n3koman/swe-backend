@@ -20,7 +20,10 @@ def get_dashboard():
             return jsonify({"error": "User not found"}), 404
 
         # Determine the role and fetch respective dashboard data
-        if user.role == Role.FARMER:
+        if user.role == Role.ADMINISTRATOR:
+            return get_admin_dashboard(user_id)
+        
+        elif user.role == Role.FARMER:
             return get_farmer_dashboard(user_id)
 
         elif user.role == Role.BUYER:
@@ -32,6 +35,25 @@ def get_dashboard():
     except Exception as e:
         print(f"Error in get_dashboard: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
+
+
+def get_admin_dashboard(user_id):
+    total_users = User.query.count()
+    total_farmers = Farmer.query.count()
+    total_buyers = Buyer.query.count()
+    total_products = Product.query.count()
+    total_orders = Order.query.count()
+
+    dashboard_data = {
+        "total_users": total_users,
+        "total_farmers": total_farmers,
+        "total_buyers": total_buyers,
+        "total_products": total_products,
+        "total_orders": total_orders,
+        "message": "Welcome to the Admin Dashboard!",
+    }
+
+    return jsonify({"dashboard": "Administrator Dashboard", "data": dashboard_data}), 200
 
 
 def get_farmer_dashboard(user_id):
