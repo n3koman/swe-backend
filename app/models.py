@@ -68,12 +68,13 @@ class Buyer(User):
     __mapper_args__ = {'polymorphic_identity': Role.BUYER}
 
 
+# Administrator Model (Simplified, more attributes can be added)
 class Administrator(User):
     __tablename__ = 'administrators'
     id = db.Column(Integer, db.ForeignKey('users.id'), primary_key=True)
-    activity_logs = db.relationship('AdminActivityLog', backref='admin', lazy=True)
 
-    __mapper_args__ = {'polymorphic_identity': Role.ADMINISTRATOR.value}
+    __mapper_args__ = {'polymorphic_identity': Role.ADMINISTRATOR}
+
 
 # Product Model for Farmer's Products
 class Product(db.Model):
