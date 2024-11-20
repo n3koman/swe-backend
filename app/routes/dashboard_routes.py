@@ -23,10 +23,10 @@ def get_dashboard():
         if user.role == Role.ADMINISTRATOR.value:
             return get_admin_dashboard()
 
-        elif user.role == Role.FARMER:
+        elif user.role == Role.FARMER.value:
             return get_farmer_dashboard(user_id)
 
-        elif user.role == Role.BUYER:
+        elif user.role == Role.BUYER.value:
             return get_buyer_dashboard(user_id)
 
         else:
