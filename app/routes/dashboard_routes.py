@@ -42,12 +42,26 @@ def get_admin_dashboard():
     Retrieve the dashboard data for the administrator with detailed information.
     """
     try:
-        # Gather detailed admin-specific data
+        # Log queries
+        print("Fetching users...")
         users = User.query.all()
+        print(f"Total users fetched: {len(users)}")
+
+        print("Fetching farmers...")
         farmers = Farmer.query.all()
+        print(f"Total farmers fetched: {len(farmers)}")
+
+        print("Fetching buyers...")
         buyers = Buyer.query.all()
+        print(f"Total buyers fetched: {len(buyers)}")
+
+        print("Fetching products...")
         products = Product.query.all()
+        print(f"Total products fetched: {len(products)}")
+
+        print("Fetching orders...")
         orders = Order.query.all()
+        print(f"Total orders fetched: {len(orders)}")
 
         # Collect user details
         user_data = [
@@ -55,7 +69,7 @@ def get_admin_dashboard():
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
-                "role": user.role,
+                "role": user.role.value if user.role else None,
                 "created_at": user.created_at,
             }
             for user in users
@@ -94,7 +108,7 @@ def get_admin_dashboard():
                 "orders": [
                     {
                         "id": order.id,
-                        "status": order.status,
+                        "status": order.status.value if order.status else None,
                         "total_price": order.total_price,
                         "created_at": order.created_at,
                     }
@@ -122,7 +136,7 @@ def get_admin_dashboard():
             {
                 "id": order.id,
                 "buyer_id": order.buyer_id,
-                "status": order.status,
+                "status": order.status.value if order.status else None,
                 "total_price": order.total_price,
                 "created_at": order.created_at,
             }
@@ -142,6 +156,7 @@ def get_admin_dashboard():
             "orders": order_data,
         }
 
+        print("Dashboard data successfully generated.")
         return jsonify({"dashboard": "Administrator Dashboard", "data": dashboard_data}), 200
 
     except Exception as e:
