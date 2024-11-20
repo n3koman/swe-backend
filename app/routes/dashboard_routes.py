@@ -39,20 +39,107 @@ def get_dashboard():
 
 def get_admin_dashboard():
     """
-    Retrieve the dashboard data for an administrator.
+    Retrieve the dashboard data for the administrator with detailed information.
     """
     try:
-        total_farmers = Farmer.query.count()
-        total_buyers = Buyer.query.count()
-        total_products = Product.query.count()
-        total_orders = Order.query.count()
+        # Gather detailed admin-specific data
+        users = User.query.all()
+        farmers = Farmer.query.all()
+        buyers = Buyer.query.all()
+        products = Product.query.all()
+        orders = Order.query.all()
+
+        # Collect user details
+        user_data = [
+            {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "created_at": user.created_at,
+            }
+            for user in users
+        ]
+
+        # Collect farmer details with their products
+        farmer_data = [
+            {
+                "id": farmer.id,
+                "name": farmer.name,
+                "email": farmer.email,
+                "farm_address": farmer.farm_address,
+                "farm_size": farmer.farm_size,
+                "crops": farmer.crop_types,
+                "products": [
+                    {
+                        "id": product.id,
+                        "name": product.name,
+                        "price": product.price,
+                        "stock": product.stock,
+                        "description": product.description,
+                    }
+                    for product in Product.query.filter_by(farmer_id=farmer.id).all()
+                ],
+            }
+            for farmer in farmers
+        ]
+
+        # Collect buyer details with their orders
+        buyer_data = [
+            {
+                "id": buyer.id,
+                "name": buyer.name,
+                "email": buyer.email,
+                "delivery_address": buyer.delivery_address,
+                "orders": [
+                    {
+                        "id": order.id,
+                        "status": order.status,
+                        "total_price": order.total_price,
+                        "created_at": order.created_at,
+                    }
+                    for order in Order.query.filter_by(buyer_id=buyer.id).all()
+                ],
+            }
+            for buyer in buyers
+        ]
+
+        # Collect product details
+        product_data = [
+            {
+                "id": product.id,
+                "name": product.name,
+                "category": product.category,
+                "price": product.price,
+                "stock": product.stock,
+                "farmer_id": product.farmer_id,
+            }
+            for product in products
+        ]
+
+        # Collect order details
+        order_data = [
+            {
+                "id": order.id,
+                "buyer_id": order.buyer_id,
+                "status": order.status,
+                "total_price": order.total_price,
+                "created_at": order.created_at,
+            }
+            for order in orders
+        ]
 
         dashboard_data = {
-            "total_farmers": total_farmers,
-            "total_buyers": total_buyers,
-            "total_products": total_products,
-            "total_orders": total_orders,
-            "message": "Welcome to the Administrator Dashboard!"
+            "total_users": len(users),
+            "total_farmers": len(farmers),
+            "total_buyers": len(buyers),
+            "total_products": len(products),
+            "total_orders": len(orders),
+            "users": user_data,
+            "farmers": farmer_data,
+            "buyers": buyer_data,
+            "products": product_data,
+            "orders": order_data,
         }
 
         return jsonify({"dashboard": "Administrator Dashboard", "data": dashboard_data}), 200
@@ -60,7 +147,6 @@ def get_admin_dashboard():
     except Exception as e:
         print(f"Error in get_admin_dashboard: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
-
 
 def get_farmer_dashboard(user_id):
     """
