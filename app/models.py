@@ -3,37 +3,38 @@ from sqlalchemy import Enum, Float, Integer, String, DateTime, Text
 import enum
 from datetime import datetime
 
+
 # Enum Classes for Choices
 class Role(enum.Enum):
-    FARMER = 'farmer'
-    BUYER = 'buyer'
-    ADMINISTRATOR = 'administrator'
+    FARMER = "farmer"
+    BUYER = "buyer"
+    ADMINISTRATOR = "administrator"
 
 
 class OrderStatus(enum.Enum):
-    PLACED = 'placed'
-    PROCESSING = 'processing'
-    DISPATCHED = 'dispatched'
-    DELIVERED = 'delivered'
-    CANCELED = 'canceled'
+    PLACED = "placed"
+    PROCESSING = "processing"
+    DISPATCHED = "dispatched"
+    DELIVERED = "delivered"
+    CANCELED = "canceled"
 
 
 class DeliveryMethod(enum.Enum):
-    HOME_DELIVERY = 'home_delivery'
-    PICKUP_POINT = 'pickup_point'
-    THIRD_PARTY = 'third_party'
+    HOME_DELIVERY = "home_delivery"
+    PICKUP_POINT = "pickup_point"
+    THIRD_PARTY = "third_party"
 
 
 class DeliveryStatus(enum.Enum):
-    NOT_SHIPPED = 'not_shipped'
-    SHIPPED = 'shipped'
-    IN_TRANSIT = 'in_transit'
-    DELIVERED = 'delivered'
+    NOT_SHIPPED = "not_shipped"
+    SHIPPED = "shipped"
+    IN_TRANSIT = "in_transit"
+    DELIVERED = "delivered"
 
 
 # Base User Model
 class User(db.Model):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = db.Column(Integer, primary_key=True)
     name = db.Column(String(100), nullable=False)
     email = db.Column(String(120), unique=True, nullable=False)
@@ -43,50 +44,57 @@ class User(db.Model):
     created_at = db.Column(DateTime, default=datetime.utcnow)
     updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
 
-    __mapper_args__ = {'polymorphic_on': role}
+    __mapper_args__ = {"polymorphic_on": role}
 
 
 # Farmer Model with Farm Details
 class Farmer(User):
-    __tablename__ = 'farmers'
-    id = db.Column(Integer, db.ForeignKey('users.id'), primary_key=True)
+    __tablename__ = "farmers"
+    id = db.Column(Integer, db.ForeignKey("users.id"), primary_key=True)
     farm_address = db.Column(db.String(255), nullable=False)
     farm_size = db.Column(Float, nullable=True)
     crop_types = db.Column(db.ARRAY(String), nullable=True)
     gov_id = db.Column(String(50), nullable=True)  # Government-issued ID
+    products = db.relationship("Product", backref="farmer", lazy=True)
 
-    __mapper_args__ = {'polymorphic_identity': Role.FARMER}
+    __mapper_args__ = {"polymorphic_identity": Role.FARMER}
 
 
 # Buyer Model with Delivery Preferences
 class Buyer(User):
-    __tablename__ = 'buyers'
-    id = db.Column(Integer, db.ForeignKey('users.id'), primary_key=True)
+    __tablename__ = "buyers"
+    id = db.Column(Integer, db.ForeignKey("users.id"), primary_key=True)
     delivery_address = db.Column(String(255), nullable=False)
     preferred_payment_method = db.Column(String(50), nullable=True)
+    orders = db.relationship("Order", backref="buyer", lazy=True)
 
-    __mapper_args__ = {'polymorphic_identity': Role.BUYER}
+    __mapper_args__ = {"polymorphic_identity": Role.BUYER}
 
 
 # Administrator Model (Simplified, more attributes can be added)
 class Administrator(User):
-    __tablename__ = 'administrators'
-    id = db.Column(Integer, db.ForeignKey('users.id'), primary_key=True)
+    __tablename__ = "administrators"
+    id = db.Column(Integer, db.ForeignKey("users.id"), primary_key=True)
 
-    __mapper_args__ = {'polymorphic_identity': Role.ADMINISTRATOR}
+    __mapper_args__ = {"polymorphic_identity": Role.ADMINISTRATOR}
 
 
 # Product Model for Farmer's Products
 class Product(db.Model):
-    __tablename__ = 'products'
+    __tablename__ = "products"
     id = db.Column(Integer, primary_key=True)
     name = db.Column(String(100), nullable=False)
-    category = db.Column(String(100), nullable=False)  # E.g., vegetables, fruits, seeds
+    category = db.Column(String(100), nullable=False)
     price = db.Column(Float, nullable=False)
     stock = db.Column(Integer, nullable=False)
     description = db.Column(Text, nullable=True)
-    farmer_id = db.Column(Integer, db.ForeignKey('farmers.id'), nullable=False)
-    images = db.relationship('ProductImage', backref='product', lazy=True)  # Images for the product
+    farmer_id = db.Column(Integer, db.ForeignKey("farmers.id"), nullable=False)
+    images = db.relationship(
+        "ProductImage", backref="product", lazy=True, cascade="all, delete-orphan"
+    )
+
+    created_at = db.Column(DateTime, default=datetime.utcnow)
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -95,29 +103,34 @@ class Product(db.Model):
             "price": self.price,
             "quantity": self.quantity,
             "description": self.description,
-            "created_at": self.created_at
+            "created_at": self.created_at,
         }
 
 
 # ProductImage Model for storing multiple images for each product
 class ProductImage(db.Model):
-    __tablename__ = 'product_images'
+    __tablename__ = "product_images"
     id = db.Column(Integer, primary_key=True)
-    product_id = db.Column(Integer, db.ForeignKey('products.id'), nullable=False)
+    product_id = db.Column(
+        Integer, db.ForeignKey("products.id", ondelete="CASCADE"), nullable=False
+    )
     image_url = db.Column(String(255), nullable=False)
 
 
 # Order Model for tracking orders
 class Order(db.Model):
-    __tablename__ = 'orders'
+    __tablename__ = "orders"
     id = db.Column(Integer, primary_key=True)
-    buyer_id = db.Column(Integer, db.ForeignKey('buyers.id'), nullable=False)
+    buyer_id = db.Column(Integer, db.ForeignKey("buyers.id"), nullable=False)
     status = db.Column(Enum(OrderStatus), default=OrderStatus.PLACED, nullable=False)
     total_price = db.Column(Float, nullable=False)
     created_at = db.Column(DateTime, default=datetime.utcnow)
     updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
-    order_items = db.relationship('OrderItem', backref='order', lazy=True)
-    delivery = db.relationship('Delivery', backref='order', uselist=False)  # One-to-one with Delivery
+    order_items = db.relationship("OrderItem", backref="order", lazy=True)
+    delivery = db.relationship(
+        "Delivery", backref="order", uselist=False
+    )  # One-to-one with Delivery
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -125,36 +138,40 @@ class Order(db.Model):
             "total_price": self.total_price,
             "created_at": self.created_at,
             "buyer_id": self.buyer_id,
-            "farmer_id": self.farmer_id
+            "farmer_id": self.farmer_id,
         }
 
 
 # OrderItem Model for individual items in an order
 class OrderItem(db.Model):
-    __tablename__ = 'order_items'
+    __tablename__ = "order_items"
     id = db.Column(Integer, primary_key=True)
-    order_id = db.Column(Integer, db.ForeignKey('orders.id'), nullable=False)
-    product_id = db.Column(Integer, db.ForeignKey('products.id'), nullable=False)
+    order_id = db.Column(Integer, db.ForeignKey("orders.id"), nullable=False)
+    product_id = db.Column(Integer, db.ForeignKey("products.id"), nullable=False)
     quantity = db.Column(Integer, nullable=False)
     price = db.Column(Float, nullable=False)
 
 
 # Delivery Model for delivery tracking
 class Delivery(db.Model):
-    __tablename__ = 'deliveries'
+    __tablename__ = "deliveries"
     id = db.Column(Integer, primary_key=True)
-    order_id = db.Column(Integer, db.ForeignKey('orders.id'), nullable=False)
+    order_id = db.Column(Integer, db.ForeignKey("orders.id"), nullable=False)
     delivery_method = db.Column(Enum(DeliveryMethod), nullable=False)
-    status = db.Column(Enum(DeliveryStatus), default=DeliveryStatus.NOT_SHIPPED, nullable=False)
+    status = db.Column(
+        Enum(DeliveryStatus), default=DeliveryStatus.NOT_SHIPPED, nullable=False
+    )
     tracking_number = db.Column(String(100), nullable=True)
     estimated_delivery_date = db.Column(DateTime, nullable=True)
 
 
 # Resource Model for managing farmer resources
 class Resource(db.Model):
-    __tablename__ = 'resources'
+    __tablename__ = "resources"
     id = db.Column(Integer, primary_key=True)
-    farmer_id = db.Column(Integer, db.ForeignKey('farmers.id'), nullable=False)
+    farmer_id = db.Column(Integer, db.ForeignKey("farmers.id"), nullable=False)
     description = db.Column(String(255), nullable=True)
-    resource_type = db.Column(String(100), nullable=False)  # E.g., seeds, pesticides, equipment
+    resource_type = db.Column(
+        String(100), nullable=False
+    )  # E.g., seeds, pesticides, equipment
     quantity = db.Column(Integer, nullable=True)
