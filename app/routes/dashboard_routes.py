@@ -21,7 +21,7 @@ def get_dashboard():
 
         # Determine the role and fetch respective dashboard data
         if user.role == Role.ADMINISTRATOR:
-            return get_admin_dashboard()
+            return get_admin_dashboard(user_id)
 
         elif user.role == Role.FARMER:
             return get_farmer_dashboard(user_id)
