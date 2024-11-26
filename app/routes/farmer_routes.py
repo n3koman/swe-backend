@@ -1,8 +1,9 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Farmer, Resource, Product, db
+from app.models import Farmer, Resource, Product, ProductImage, db
 from sqlalchemy.exc import IntegrityError
 import re
+import base64
 
 farmer_bp = Blueprint("farmer", __name__)
 
@@ -173,6 +174,7 @@ def add_product():
         price = data.get("price")
         stock = data.get("stock")
         description = data.get("description")
+        images = data.get("images", [])  # Base64 encoded image data
 
         # Validate inputs
         if not all([name, category, price, stock]):
@@ -190,6 +192,18 @@ def add_product():
         )
         db.session.add(product)
         db.session.flush()  # Get product ID
+
+        # Save images to the database
+        for image_base64 in images:
+            try:
+                image_data = base64.b64decode(image_base64)
+                product_image = ProductImage(
+                    product_id=product.id, image_data=image_data, mime_type="image/png"
+                )
+                db.session.add(product_image)
+            except Exception as e:
+                return jsonify({"error": f"Failed to save image: {str(e)}"}), 500
+
         db.session.commit()
         return (
             jsonify(
@@ -197,6 +211,94 @@ def add_product():
             ),
             201,
         )
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
+
+# Update a product's images
+@farmer_bp.route("/product/<int:product_id>/images", methods=["PUT"])
+@jwt_required()
+def update_product_images(product_id):
+    """
+    Update images for an existing product.
+    """
+    try:
+        user_id = get_jwt_identity()
+        product = Product.query.filter_by(id=product_id, farmer_id=user_id).first()
+        if not product:
+            return jsonify({"error": "Product not found or unauthorized access"}), 404
+
+        data = request.json
+        images = data.get("images", [])  # Base64 encoded image data
+
+        # Delete existing images
+        ProductImage.query.filter_by(product_id=product.id).delete()
+
+        # Add new images
+        for image_base64 in images:
+            try:
+                image_data = base64.b64decode(image_base64)
+                product_image = ProductImage(
+                    product_id=product.id, image_data=image_data, mime_type="image/png"
+                )
+                db.session.add(product_image)
+            except Exception as e:
+                return jsonify({"error": f"Failed to save image: {str(e)}"}), 500
+
+        db.session.commit()
+        return jsonify({"message": "Product images updated successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
+
+# Fetch images for a product
+@farmer_bp.route("/product/<int:product_id>/images", methods=["GET"])
+@jwt_required()
+def get_product_images(product_id):
+    """
+    Get images for a specific product.
+    """
+    try:
+        user_id = get_jwt_identity()
+        product = Product.query.filter_by(id=product_id, farmer_id=user_id).first()
+        if not product:
+            return jsonify({"error": "Product not found or unauthorized access"}), 404
+
+        images = ProductImage.query.filter_by(product_id=product.id).all()
+        image_list = [
+            {
+                "id": img.id,
+                "mime_type": img.mime_type,
+                "image_data": base64.b64encode(img.image_data).decode("utf-8"),
+            }
+            for img in images
+        ]
+        return jsonify({"images": image_list}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
+
+# Delete images for a product
+@farmer_bp.route("/product/<int:product_id>/images", methods=["DELETE"])
+@jwt_required()
+def delete_product_images(product_id):
+    """
+    Delete all images for a specific product.
+    """
+    try:
+        user_id = get_jwt_identity()
+        product = Product.query.filter_by(id=product_id, farmer_id=user_id).first()
+        if not product:
+            return jsonify({"error": "Product not found or unauthorized access"}), 404
+
+        ProductImage.query.filter_by(product_id=product.id).delete()
+        db.session.commit()
+        return jsonify({"message": "Product images deleted successfully"}), 200
 
     except Exception as e:
         db.session.rollback()

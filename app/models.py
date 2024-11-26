@@ -1,5 +1,14 @@
 from app import db
-from sqlalchemy import Enum, Float, Integer, String, DateTime, Text
+from sqlalchemy import (
+    Enum,
+    Float,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    LargeBinary,
+    ForeignKey,
+)
 import enum
 from datetime import datetime
 
@@ -89,6 +98,9 @@ class Product(db.Model):
     stock = db.Column(Integer, nullable=False)
     description = db.Column(Text, nullable=True)
     farmer_id = db.Column(Integer, db.ForeignKey("farmers.id"), nullable=False)
+    images = db.relationship(
+        "ProductImage", backref="product", lazy=True, cascade="all, delete-orphan"
+    )
 
     created_at = db.Column(DateTime, default=datetime.utcnow)
 
@@ -101,6 +113,27 @@ class Product(db.Model):
             "stock": self.stock,
             "description": self.description,
             "created_at": self.created_at,
+            "images": [image.to_dict() for image in self.images],
+        }
+
+
+class ProductImage(db.Model):
+    __tablename__ = "product_images"
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(
+        Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False
+    )
+    image_data = db.Column(LargeBinary, nullable=False)  # Binary image data
+    mime_type = db.Column(
+        String(50), nullable=False
+    )  # Image MIME type (e.g., 'image/png')
+    created_at = db.Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "product_id": self.product_id,
+            "mime_type": self.mime_type,
         }
 
 
@@ -125,7 +158,6 @@ class Order(db.Model):
             "total_price": self.total_price,
             "created_at": self.created_at,
             "buyer_id": self.buyer_id,
-            "farmer_id": self.farmer_id,
         }
 
 
