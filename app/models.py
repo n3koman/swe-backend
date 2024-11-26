@@ -89,9 +89,6 @@ class Product(db.Model):
     stock = db.Column(Integer, nullable=False)
     description = db.Column(Text, nullable=True)
     farmer_id = db.Column(Integer, db.ForeignKey("farmers.id"), nullable=False)
-    images = db.relationship(
-        "ProductImage", backref="product", lazy=True, cascade="all, delete-orphan"
-    )
 
     created_at = db.Column(DateTime, default=datetime.utcnow)
 
@@ -101,20 +98,10 @@ class Product(db.Model):
             "name": self.name,
             "category": self.category,
             "price": self.price,
-            "quantity": self.quantity,
+            "stock": self.stock,
             "description": self.description,
             "created_at": self.created_at,
         }
-
-
-# ProductImage Model for storing multiple images for each product
-class ProductImage(db.Model):
-    __tablename__ = "product_images"
-    id = db.Column(Integer, primary_key=True)
-    product_id = db.Column(
-        Integer, db.ForeignKey("products.id", ondelete="CASCADE"), nullable=False
-    )
-    image_url = db.Column(String(255), nullable=False)
 
 
 # Order Model for tracking orders
@@ -148,7 +135,7 @@ class OrderItem(db.Model):
     id = db.Column(Integer, primary_key=True)
     order_id = db.Column(Integer, db.ForeignKey("orders.id"), nullable=False)
     product_id = db.Column(Integer, db.ForeignKey("products.id"), nullable=False)
-    quantity = db.Column(Integer, nullable=False)
+    stock = db.Column(Integer, nullable=False)
     price = db.Column(Float, nullable=False)
 
 
@@ -174,4 +161,4 @@ class Resource(db.Model):
     resource_type = db.Column(
         String(100), nullable=False
     )  # E.g., seeds, pesticides, equipment
-    quantity = db.Column(Integer, nullable=True)
+    stock = db.Column(Integer, nullable=True)

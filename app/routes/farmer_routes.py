@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Farmer, Resource, Product, ProductImage, db
+from app.models import Farmer, Resource, Product, db
 from sqlalchemy.exc import IntegrityError
 import re
 
@@ -43,7 +43,7 @@ def get_profile():
                 "id": resource.id,
                 "type": resource.resource_type,
                 "description": resource.description,
-                "quantity": resource.quantity,
+                "stock": resource.stock,
             }
             for resource in resources
         ]
@@ -122,14 +122,14 @@ def add_resource():
         data = request.json
 
         # Validate required fields
-        if not all(key in data for key in ["resource_type", "description", "quantity"]):
+        if not all(key in data for key in ["resource_type", "description", "stock"]):
             return jsonify({"error": "Missing required resource details"}), 400
 
         new_resource = Resource(
             farmer_id=farmer.id,
             resource_type=data["resource_type"],
             description=data["description"],
-            quantity=data["quantity"],
+            stock=data["stock"],
         )
 
         db.session.add(new_resource)
@@ -143,7 +143,7 @@ def add_resource():
                         "id": new_resource.id,
                         "type": new_resource.resource_type,
                         "description": new_resource.description,
-                        "quantity": new_resource.quantity,
+                        "stock": new_resource.stock,
                     },
                 }
             ),
@@ -173,7 +173,6 @@ def add_product():
         price = data.get("price")
         stock = data.get("stock")
         description = data.get("description")
-        images = data.get("images", [])
 
         # Validate inputs
         if not all([name, category, price, stock]):
@@ -191,12 +190,6 @@ def add_product():
         )
         db.session.add(product)
         db.session.flush()  # Get product ID
-
-        # Add images
-        for image_url in images:
-            product_image = ProductImage(product_id=product.id, image_url=image_url)
-            db.session.add(product_image)
-
         db.session.commit()
         return (
             jsonify(
