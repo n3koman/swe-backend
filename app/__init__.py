@@ -25,12 +25,12 @@ def create_app():
     from app.routes.dashboard_routes import dashboard_bp
     from app.routes.farmer_routes import farmer_bp
     from app.routes.buyer_routes import buyer_bp
-    #from app.routes.admin_routes import admin_bp
+    from app.routes.admin_routes import admin_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(farmer_bp, url_prefix='/farmer')
     app.register_blueprint(buyer_bp, url_prefix='/buyer')
-    #app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
 
     return app
