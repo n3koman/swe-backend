@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Farmer, Buyer, Product, Order, Role
+from app.models import User, Farmer, Buyer, Administrator, Product, Order, Role
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -21,7 +21,7 @@ def get_dashboard():
 
         # Determine the role and fetch respective dashboard data
         if user.role == Role.ADMINISTRATOR:
-            return get_admin_dashboard()
+            return get_admin_dashboard(user_id)
 
         elif user.role == Role.FARMER:
             return get_farmer_dashboard(user_id)
@@ -37,11 +37,13 @@ def get_dashboard():
         return jsonify({"error": "Internal Server Error"}), 500
 
 
-def get_admin_dashboard():
+def get_admin_dashboard(user_id):
+
     """
     Retrieve the dashboard data for the administrator with detailed information.
     """
     try:
+
         # Log queries
         print("Fetching users...")
         users = User.query.all()
@@ -143,7 +145,14 @@ def get_admin_dashboard():
             for order in orders
         ]
 
+        # Retrieve the user data for an admin.
+        admin = Administrator.query.get(user_id)
+        if not admin:
+            return jsonify({"error": "Administrator data not found"}), 404
+
         dashboard_data = {
+            "name": admin.name,
+            "email": admin.email,
             "total_users": len(users),
             "total_farmers": len(farmers),
             "total_buyers": len(buyers),
