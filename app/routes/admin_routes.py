@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Farmer, Buyer, Product, Order, db
+from app.models import User, Farmer, Buyer, Product, Order, ProductImage, db
 from sqlalchemy.exc import IntegrityError
+import base64
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -99,7 +100,7 @@ def delete_user(user_id):
 @jwt_required()
 def get_products():
     """
-    Retrieve all products.
+    Retrieve all products with their images and categories.
     """
     try:
         admin_id = get_jwt_identity()
@@ -107,17 +108,29 @@ def get_products():
             return jsonify({"error": "Unauthorized access"}), 403
 
         products = Product.query.all()
-        product_list = [
-            {
-                "id": product.id,
-                "name": product.name,
-                "price": product.price,
-                "stock": product.stock,
-                "description": product.description,
-                "farmer_id": product.farmer_id,
-            }
-            for product in products
-        ]
+        product_list = []
+        for product in products:
+            images = ProductImage.query.filter_by(product_id=product.id).all()
+            image_list = [
+                {
+                    "mime_type": image.mime_type,
+                    "image_data": base64.b64encode(image.image_data).decode("utf-8"),
+                }
+                for image in images
+            ]
+            product_list.append(
+                {
+                    "id": product.id,
+                    "name": product.name,
+                    "category": product.category,  # Assuming category is a field in the Product model
+                    "price": product.price,
+                    "stock": product.stock,
+                    "description": product.description,
+                    "farmer_id": product.farmer_id,
+                    "images": image_list,
+                }
+            )
+
         return jsonify({"products": product_list}), 200
     except Exception as e:
         print(f"Error in get_products: {e}")
