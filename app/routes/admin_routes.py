@@ -96,11 +96,11 @@ def delete_user(user_id):
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 
-@admin_bp.route("/products", methods=["GET"])
+@admin_bp.route("/products-with-images", methods=["GET"])
 @jwt_required()
-def get_products():
+def get_products_with_images():
     """
-    Retrieve all products with their images and categories.
+    Retrieve all products with their images.
     """
     try:
         admin_id = get_jwt_identity()
@@ -122,7 +122,7 @@ def get_products():
                 {
                     "id": product.id,
                     "name": product.name,
-                    "category": product.category,  # Assuming category is a field in the Product model
+                    "category": product.category,
                     "price": product.price,
                     "stock": product.stock,
                     "description": product.description,
@@ -133,8 +133,9 @@ def get_products():
 
         return jsonify({"products": product_list}), 200
     except Exception as e:
-        print(f"Error in get_products: {e}")
+        print(f"Error in get_products_with_images: {e}")
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
 
 
 @admin_bp.route("/orders", methods=["GET"])
