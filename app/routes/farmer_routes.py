@@ -318,6 +318,53 @@ def update_product(product_id):
             return jsonify({"error": "Product not found or unauthorized access"}), 404
 
         data = request.json
+
+        # Convert price and stock to the appropriate type and validate them
+        price = data.get("price", product.price)
+        stock = data.get("stock", product.stock)
+
+        # Ensure price and stock are numbers
+        try:
+            if price is not None:
+                price = float(price)
+            if stock is not None:
+                stock = int(stock)
+        except ValueError:
+            return (
+                jsonify(
+                    {"error": "Price must be a number and stock must be an integer"}
+                ),
+                400,
+            )
+
+        # Update the product
+        product.name = data.get("name", product.name)
+        product.category = data.get("category", product.category)
+        product.price = price
+        product.stock = stock
+        product.description = data.get("description", product.description)
+
+        # Validate price and stock
+        if product.price <= 0 or product.stock < 0:
+            return jsonify({"error": "Price and stock must be positive numbers"}), 400
+
+        db.session.commit()
+        return jsonify({"message": "Product updated successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
+    """
+    Update an existing product listing.
+    """
+    try:
+        user_id = get_jwt_identity()
+        product = Product.query.filter_by(id=product_id, farmer_id=user_id).first()
+        if not product:
+            return jsonify({"error": "Product not found or unauthorized access"}), 404
+
+        data = request.json
         product.name = data.get("name", product.name)
         product.category = data.get("category", product.category)
         product.price = data.get("price", product.price)
