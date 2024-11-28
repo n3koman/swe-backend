@@ -231,6 +231,65 @@ def add_to_cart():
         db.session.rollback()
         return jsonify({"error": f"Failed to add to cart: {str(e)}"}), 500
 
+@buyer_bp.route("/cart", methods=["GET"])
+@jwt_required()
+def get_cart():
+    """
+    Fetch all cart items for the authenticated user.
+    """
+    user_id = get_jwt_identity()
+
+    try:
+        cart_items = Cart.query.filter_by(buyer_id=user_id).all()
+        if not cart_items:
+            return jsonify({"cart_items": []}), 200
+
+        cart_data = [
+            {
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": item.product.name,
+                "product_price": item.product.price,
+                "product_stock": item.product.stock,
+                "quantity": item.quantity,
+                "farmer_name": item.product.farmer.name if item.product.farmer else "Unknown",
+                "total_price": item.quantity * item.product.price,
+            }
+            for item in cart_items
+        ]
+
+        return jsonify({"cart_items": cart_data}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch cart items: {str(e)}"}), 500
+
+
+@buyer_bp.route("/cart/remove", methods=["DELETE"])
+@jwt_required()
+def delete_from_cart():
+    """
+    Remove a product from the cart.
+    """
+    user_id = get_jwt_identity()
+    data = request.json
+    product_id = data.get("product_id")
+
+    if not product_id:
+        return jsonify({"error": "Product ID is required"}), 400
+
+    try:
+        # Find the cart item
+        cart_item = Cart.query.filter_by(buyer_id=user_id, product_id=product_id).first()
+        if not cart_item:
+            return jsonify({"error": "Product not found in cart"}), 404
+
+        # Delete the cart item
+        db.session.delete(cart_item)
+        db.session.commit()
+
+        return jsonify({"message": "Product removed from cart"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to remove product from cart: {str(e)}"}), 500
 
 @buyer_bp.route("/checkout", methods=["POST"])
 @jwt_required()
