@@ -263,7 +263,6 @@ def get_cart():
                 "product_id": item.product_id,
                 "product_name": item.product.name if item.product else "Unknown",
                 "product_price": item.product.price if item.product else 0,
-                "product_stock": item.product.stock if item.product else 0,
                 "quantity": item.quantity,  # Use quantity
                 "farmer_name": (
                     item.product.farmer.name
