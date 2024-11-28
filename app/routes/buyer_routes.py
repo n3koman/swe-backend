@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Buyer, Order, Farmer, Product, db
+from app.models import Buyer, Order, Farmer, Product, Cart, OrderItem, OrderStatus, db
 from sqlalchemy.exc import IntegrityError
 import re
 import base64
@@ -194,3 +194,100 @@ def get_products():
     except Exception as e:
         print(f"ERROR: Exception occurred - {str(e)}")
         return jsonify({"error": f"Error fetching products: {str(e)}"}), 500
+
+
+@buyer_bp.route("/cart", methods=["POST"])
+@jwt_required()
+def add_to_cart():
+    user_id = get_jwt_identity()
+    data = request.json
+    product_id = data.get("product_id")
+
+    if not product_id:
+        return jsonify({"error": "Product ID is required"}), 400
+
+    try:
+        # Check product existence
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({"error": "Product not found"}), 404
+        if product.stock <= 0:
+            return jsonify({"error": f"{product.name} is out of stock"}), 400
+
+        # Check if the product is already in the cart
+        cart_item = Cart.query.filter_by(
+            buyer_id=user_id, product_id=product_id
+        ).first()
+        if cart_item:
+            return jsonify({"message": "Product already in cart"}), 200
+
+        # Add to cart
+        cart_item = Cart(buyer_id=user_id, product_id=product_id)
+        db.session.add(cart_item)
+        db.session.commit()
+
+        return jsonify({"message": "Product added to cart"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to add to cart: {str(e)}"}), 500
+
+
+@buyer_bp.route("/checkout", methods=["POST"])
+@jwt_required()
+def checkout():
+    user_id = get_jwt_identity()
+    try:
+        # Fetch cart items
+        cart_items = Cart.query.filter_by(buyer_id=user_id).all()
+        if not cart_items:
+            return jsonify({"error": "Cart is empty"}), 400
+
+        total_price = 0
+        order_items = []
+
+        for item in cart_items:
+            product = item.product
+
+            # Ensure product is in stock
+            if product.stock <= 0:
+                return jsonify({"error": f"{product.name} is out of stock"}), 400
+
+            # Calculate total price and update stock
+            item_total_price = product.price * 1  # Since `quantity` is now stock
+            product.stock -= 1
+            total_price += item_total_price
+
+            # Add to order items
+            order_items.append(
+                OrderItem(
+                    product_id=product.id,
+                    product_name=product.name,
+                    product_price=product.price,
+                    quantity=1,
+                    total_price=item_total_price,
+                )
+            )
+
+        # Create order
+        order = Order(
+            buyer_id=user_id,
+            status=OrderStatus.PLACED,
+            total_price=total_price,
+            order_items=order_items,
+        )
+        db.session.add(order)
+
+        # Clear cart
+        Cart.query.filter_by(buyer_id=user_id).delete()
+
+        # Commit transaction
+        db.session.commit()
+
+        return (
+            jsonify({"message": "Checkout successful", "order": order.to_dict()}),
+            200,
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Checkout failed: {str(e)}"}), 500

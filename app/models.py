@@ -137,7 +137,6 @@ class ProductImage(db.Model):
         }
 
 
-# Order Model for tracking orders
 class Order(db.Model):
     __tablename__ = "orders"
     id = db.Column(Integer, primary_key=True)
@@ -146,7 +145,9 @@ class Order(db.Model):
     total_price = db.Column(Float, nullable=False)
     created_at = db.Column(DateTime, default=datetime.utcnow)
     updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
-    order_items = db.relationship("OrderItem", backref="order", lazy=True)
+    order_items = db.relationship(
+        "OrderItem", backref="order", lazy=True, cascade="all, delete-orphan"
+    )
     delivery = db.relationship(
         "Delivery", backref="order", uselist=False
     )  # One-to-one with Delivery
@@ -154,21 +155,35 @@ class Order(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "status": self.status,
+            "buyer_id": self.buyer_id,
+            "status": self.status.value,
             "total_price": self.total_price,
             "created_at": self.created_at,
-            "buyer_id": self.buyer_id,
+            "updated_at": self.updated_at,
+            "order_items": [item.to_dict() for item in self.order_items],
         }
 
 
-# OrderItem Model for individual items in an order
 class OrderItem(db.Model):
     __tablename__ = "order_items"
     id = db.Column(Integer, primary_key=True)
     order_id = db.Column(Integer, db.ForeignKey("orders.id"), nullable=False)
     product_id = db.Column(Integer, db.ForeignKey("products.id"), nullable=False)
-    stock = db.Column(Integer, nullable=False)
-    price = db.Column(Float, nullable=False)
+    product_name = db.Column(String(100), nullable=False)
+    product_price = db.Column(Float, nullable=False)
+    quantity = db.Column(Integer, nullable=False)
+    total_price = db.Column(Float, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "order_id": self.order_id,
+            "product_id": self.product_id,
+            "product_name": self.product_name,
+            "product_price": self.product_price,
+            "quantity": self.quantity,
+            "total_price": self.total_price,
+        }
 
 
 # Delivery Model for delivery tracking
@@ -194,3 +209,30 @@ class Resource(db.Model):
         String(100), nullable=False
     )  # E.g., seeds, pesticides, equipment
     stock = db.Column(Integer, nullable=True)
+
+
+class Cart(db.Model):
+    __tablename__ = "cart"
+    id = db.Column(Integer, primary_key=True)
+    buyer_id = db.Column(Integer, db.ForeignKey("buyers.id"), nullable=False)
+    product_id = db.Column(Integer, db.ForeignKey("products.id"), nullable=False)
+    created_at = db.Column(DateTime, default=datetime.utcnow)
+    updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
+
+    # Relationships
+    product = db.relationship("Product", backref="cart_items")
+    buyer = db.relationship("Buyer", backref="cart_items")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "buyer_id": self.buyer_id,
+            "product_id": self.product_id,
+            "product_name": self.product.name,
+            "product_price": self.product.price,
+            "product_stock": self.product.stock,
+            "farmer_name": (
+                self.product.farmer.name if self.product.farmer else "Unknown"
+            ),
+            "total_price": self.product.price,
+        }
