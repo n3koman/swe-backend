@@ -291,31 +291,30 @@ def get_cart():
 @buyer_bp.route("/cart/remove", methods=["DELETE"])
 @jwt_required()
 def delete_from_cart():
+    """
+    Removes a product from the cart completely.
+    """
     user_id = get_jwt_identity()
     data = request.json
     product_id = data.get("product_id")
-    quantity = data.get("quantity", 1)  # Allow decrementing quantity
 
     if not product_id:
         return jsonify({"error": "Product ID is required"}), 400
 
     try:
-        # Find the cart item
+        # Find the cart item for the given user and product
         cart_item = Cart.query.filter_by(
             buyer_id=user_id, product_id=product_id
         ).first()
         if not cart_item:
             return jsonify({"error": "Product not found in cart"}), 404
 
-        if cart_item.quantity > quantity:
-            cart_item.quantity -= quantity
-        else:
-            # Remove the item completely
-            db.session.delete(cart_item)
-
+        # Remove the item completely
+        db.session.delete(cart_item)
         db.session.commit()
-        return jsonify({"message": "Product removed from cart"}), 200
+
+        return jsonify({"message": "Product removed from cart successfully"}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Failed to remove product from cart: {str(e)}"}), 500
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
