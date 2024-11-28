@@ -258,14 +258,16 @@ def get_cart():
             {
                 "id": item.id,
                 "product_id": item.product_id,
-                "product_name": item.product.name,
-                "product_price": item.product.price,
-                "product_stock": item.product.stock,
+                "product_name": item.product.name if item.product else "Unknown",
+                "product_price": item.product.price if item.product else 0,
+                "product_stock": item.product.stock if item.product else 0,
                 "stock": item.stock,
                 "farmer_name": (
-                    item.product.farmer.name if item.product.farmer else "Unknown"
+                    item.product.farmer.name
+                    if item.product and item.product.farmer
+                    else "Unknown"
                 ),
-                "total_price": item.stock * item.product.price,
+                "total_price": item.stock * (item.product.price if item.product else 0),
             }
             for item in cart_items
         ]
