@@ -199,9 +199,6 @@ def get_products():
 @buyer_bp.route("/cart", methods=["POST"])
 @jwt_required()
 def add_to_cart():
-    """
-    Add multiple products to the cart for the authenticated user.
-    """
     user_id = get_jwt_identity()
     data = request.json
     cart_items = data.get("cart", [])
@@ -228,11 +225,11 @@ def add_to_cart():
 
             if cart_item:
                 # Update quantity if already in the cart
-                cart_item.stock += quantity
+                cart_item.quantity += quantity
             else:
                 # Add new cart item
                 cart_item = Cart(
-                    buyer_id=user_id, product_id=product_id, stock=quantity
+                    buyer_id=user_id, product_id=product_id, quantity=quantity
                 )
                 db.session.add(cart_item)
 
@@ -281,12 +278,10 @@ def get_cart():
 @buyer_bp.route("/cart/remove", methods=["DELETE"])
 @jwt_required()
 def delete_from_cart():
-    """
-    Remove a product from the cart.
-    """
     user_id = get_jwt_identity()
     data = request.json
     product_id = data.get("product_id")
+    quantity = data.get("quantity", 1)  # Allow decrementing quantity
 
     if not product_id:
         return jsonify({"error": "Product ID is required"}), 400
@@ -299,11 +294,15 @@ def delete_from_cart():
         if not cart_item:
             return jsonify({"error": "Product not found in cart"}), 404
 
-        # Delete the cart item
-        db.session.delete(cart_item)
-        db.session.commit()
+        if cart_item.quantity > quantity:
+            cart_item.quantity -= quantity
+        else:
+            # Remove the item completely
+            db.session.delete(cart_item)
 
+        db.session.commit()
         return jsonify({"message": "Product removed from cart"}), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to remove product from cart: {str(e)}"}), 500
