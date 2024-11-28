@@ -11,6 +11,7 @@ from sqlalchemy import (
 )
 import enum
 from datetime import datetime
+import base64
 
 
 # Enum Classes for Choices
@@ -226,15 +227,20 @@ class Cart(db.Model):
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "buyer_id": self.buyer_id,
+            "id": self.product_id,  # Use product ID for consistency
             "product_id": self.product_id,
-            "product_name": self.product.name,
-            "product_price": self.product.price,
-            "product_stock": self.product.stock,
-            "quantity": self.quantity,  # Updated field
+            "name": self.product.name,  # Add name
+            "price": self.product.price,
+            "quantity": self.quantity,
+            "images": [
+                {
+                    "data": base64.b64encode(image.image_data).decode("utf-8"),
+                    "mime_type": image.mime_type,
+                }
+                for image in self.product.images
+            ],
             "farmer_name": (
                 self.product.farmer.name if self.product.farmer else "Unknown"
             ),
-            "total_price": self.quantity * self.product.price,  # Updated calculation
+            "total_price": self.quantity * self.product.price,
         }

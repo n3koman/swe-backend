@@ -248,7 +248,7 @@ def add_to_cart():
 @jwt_required()
 def get_cart():
     """
-    Fetch all cart items for the authenticated user.
+    Fetch all cart items for the authenticated user with full product details.
     """
     user_id = get_jwt_identity()
 
@@ -257,23 +257,31 @@ def get_cart():
         if not cart_items:
             return jsonify({"cart_items": []}), 200
 
-        cart_data = [
-            {
-                "id": item.id,
-                "product_id": item.product_id,
-                "product_name": item.product.name if item.product else "Unknown",
-                "product_price": item.product.price if item.product else 0,
-                "quantity": item.quantity,  # Use quantity
-                "farmer_name": (
-                    item.product.farmer.name
-                    if item.product and item.product.farmer
-                    else "Unknown"
-                ),
-                "total_price": item.quantity
-                * (item.product.price if item.product else 0),  # Updated calculation
-            }
-            for item in cart_items
-        ]
+        cart_data = []
+        for item in cart_items:
+            product = item.product
+            if product:
+                # Include image data if available
+                images = []
+                if product.images:
+                    images = [
+                        {
+                            "data": base64.b64encode(image.image_data).decode("utf-8"),
+                            "mime_type": image.mime_type,
+                        }
+                        for image in product.images
+                    ]
+
+                cart_item_data = {
+                    "id": product.id,  # Use product ID instead of cart item ID
+                    "name": product.name,
+                    "price": product.price,
+                    "quantity": item.quantity,
+                    "images": images,
+                    "category": product.category,
+                    "farmer_name": product.farmer.name if product.farmer else "Unknown",
+                }
+                cart_data.append(cart_item_data)
 
         return jsonify({"cart_items": cart_data}), 200
     except Exception as e:
