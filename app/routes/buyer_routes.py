@@ -200,7 +200,7 @@ def get_products():
 @jwt_required()
 def add_to_cart():
     """
-    Add multiple products to the cart for the authenticated user.
+    Add or update multiple products in the cart for the authenticated user.
     """
     user_id = get_jwt_identity()
     data = request.json
@@ -227,8 +227,8 @@ def add_to_cart():
             ).first()
 
             if cart_item:
-                # Update quantity if already in the cart
-                cart_item.quantity += quantity
+                # Set the quantity to the exact provided value
+                cart_item.quantity = quantity
             else:
                 # Add new cart item
                 cart_item = Cart(
@@ -241,7 +241,7 @@ def add_to_cart():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Failed to add to cart: {str(e)}"}), 500
+        return jsonify({"error": f"Failed to update cart: {str(e)}"}), 500
 
 
 @buyer_bp.route("/cart", methods=["GET"])
@@ -319,4 +319,3 @@ def delete_from_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to remove product from cart: {str(e)}"}), 500
-
