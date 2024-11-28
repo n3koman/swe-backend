@@ -199,6 +199,9 @@ def get_products():
 @buyer_bp.route("/cart", methods=["POST"])
 @jwt_required()
 def add_to_cart():
+    """
+    Add multiple products to the cart for the authenticated user.
+    """
     user_id = get_jwt_identity()
     data = request.json
     cart_items = data.get("cart", [])
@@ -261,13 +264,14 @@ def get_cart():
                 "product_name": item.product.name if item.product else "Unknown",
                 "product_price": item.product.price if item.product else 0,
                 "product_stock": item.product.stock if item.product else 0,
-                "stock": item.stock,
+                "quantity": item.quantity,  # Use quantity
                 "farmer_name": (
                     item.product.farmer.name
                     if item.product and item.product.farmer
                     else "Unknown"
                 ),
-                "total_price": item.stock * (item.product.price if item.product else 0),
+                "total_price": item.quantity
+                * (item.product.price if item.product else 0),  # Updated calculation
             }
             for item in cart_items
         ]

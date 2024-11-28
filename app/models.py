@@ -213,12 +213,12 @@ class Resource(db.Model):
 
 class Cart(db.Model):
     __tablename__ = "cart"
-    id = db.Column(Integer, primary_key=True)
-    buyer_id = db.Column(Integer, db.ForeignKey("buyers.id"), nullable=False)
-    product_id = db.Column(Integer, db.ForeignKey("products.id"), nullable=False)
-    quantity = db.Column(Integer, nullable=False, default=1)  # New quantity field
-    created_at = db.Column(DateTime, default=datetime.utcnow)
-    updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("buyers.id"), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)  # Add this field
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
     # Relationships
     product = db.relationship("Product", backref="cart_items")
@@ -229,12 +229,12 @@ class Cart(db.Model):
             "id": self.id,
             "buyer_id": self.buyer_id,
             "product_id": self.product_id,
-            "quantity": self.quantity,  # Include quantity in the output
             "product_name": self.product.name,
             "product_price": self.product.price,
             "product_stock": self.product.stock,
+            "quantity": self.quantity,  # Updated field
             "farmer_name": (
                 self.product.farmer.name if self.product.farmer else "Unknown"
             ),
-            "total_price": self.product.price * self.quantity,  # Calculate total price
+            "total_price": self.quantity * self.product.price,  # Updated calculation
         }
