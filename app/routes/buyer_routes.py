@@ -199,37 +199,50 @@ def get_products():
 @buyer_bp.route("/cart", methods=["POST"])
 @jwt_required()
 def add_to_cart():
+    """
+    Add multiple products to the cart for the authenticated user.
+    """
     user_id = get_jwt_identity()
     data = request.json
-    product_id = data.get("product_id")
+    cart_items = data.get("cart", [])
 
-    if not product_id:
-        return jsonify({"error": "Product ID is required"}), 400
+    if not cart_items:
+        return jsonify({"error": "Cart data is required"}), 400
 
     try:
-        # Check product existence
-        product = Product.query.get(product_id)
-        if not product:
-            return jsonify({"error": "Product not found"}), 404
-        if product.stock <= 0:
-            return jsonify({"error": f"{product.name} is out of stock"}), 400
+        for item in cart_items:
+            product_id = item.get("product_id")
+            quantity = item.get("quantity", 1)
 
-        # Check if the product is already in the cart
-        cart_item = Cart.query.filter_by(
-            buyer_id=user_id, product_id=product_id
-        ).first()
-        if cart_item:
-            return jsonify({"message": "Product already in cart"}), 200
+            # Validate product existence and stock
+            product = Product.query.get(product_id)
+            if not product:
+                return jsonify({"error": f"Product {product_id} not found"}), 404
+            if product.stock < quantity:
+                return jsonify({"error": f"Not enough stock for {product.name}"}), 400
 
-        # Add to cart
-        cart_item = Cart(buyer_id=user_id, product_id=product_id)
-        db.session.add(cart_item)
+            # Check if the product is already in the cart
+            cart_item = Cart.query.filter_by(
+                buyer_id=user_id, product_id=product_id
+            ).first()
+
+            if cart_item:
+                # Update quantity if already in the cart
+                cart_item.stock += quantity
+            else:
+                # Add new cart item
+                cart_item = Cart(
+                    buyer_id=user_id, product_id=product_id, stock=quantity
+                )
+                db.session.add(cart_item)
+
         db.session.commit()
+        return jsonify({"message": "Cart updated successfully"}), 200
 
-        return jsonify({"message": "Product added to cart"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to add to cart: {str(e)}"}), 500
+
 
 @buyer_bp.route("/cart", methods=["GET"])
 @jwt_required()
@@ -251,9 +264,11 @@ def get_cart():
                 "product_name": item.product.name,
                 "product_price": item.product.price,
                 "product_stock": item.product.stock,
-                "quantity": item.quantity,
-                "farmer_name": item.product.farmer.name if item.product.farmer else "Unknown",
-                "total_price": item.quantity * item.product.price,
+                "stock": item.stock,
+                "farmer_name": (
+                    item.product.farmer.name if item.product.farmer else "Unknown"
+                ),
+                "total_price": item.stock * item.product.price,
             }
             for item in cart_items
         ]
@@ -278,7 +293,9 @@ def delete_from_cart():
 
     try:
         # Find the cart item
-        cart_item = Cart.query.filter_by(buyer_id=user_id, product_id=product_id).first()
+        cart_item = Cart.query.filter_by(
+            buyer_id=user_id, product_id=product_id
+        ).first()
         if not cart_item:
             return jsonify({"error": "Product not found in cart"}), 404
 
@@ -290,6 +307,7 @@ def delete_from_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Failed to remove product from cart: {str(e)}"}), 500
+
 
 @buyer_bp.route("/checkout", methods=["POST"])
 @jwt_required()
