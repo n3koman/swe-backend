@@ -1,10 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Buyer, Order, Farmer, Product, Cart, OrderItem, OrderStatus, db
+from app.models import Buyer, Order, Farmer, Product, Cart, OrderItem, OrderStatus, Delivery, DeliveryMethod, DeliveryStatus, db
 from sqlalchemy.exc import IntegrityError
 import re
 import base64
 import difflib
+from datetime import datetime, timedelta
+import uuid
 
 buyer_bp = Blueprint("buyer", __name__)
 
@@ -318,3 +320,76 @@ def delete_from_cart():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+
+@buyer_bp.route("/place-order", methods=["POST"])
+@jwt_required()
+def place_order():
+    """
+    Create a new order with order items and delivery information
+    """
+    user_id = get_jwt_identity()
+    data = request.json
+
+    try:
+        # Validate input data
+        cart_items = data.get("cart_items", [])
+        delivery_info = data.get("delivery_info", {})
+        total_price = data.get("total_price", 0)
+
+        if not cart_items:
+            return jsonify({"error": "Cart is empty"}), 400
+
+        # Create new order
+        new_order = Order(
+            buyer_id=user_id, status=OrderStatus.PLACED, total_price=total_price
+        )
+        db.session.add(new_order)
+        db.session.flush()  # This will populate the order's ID
+
+        # Create order items
+        order_items = []
+        for item in cart_items:
+            order_item = OrderItem(
+                order_id=new_order.id,
+                product_id=item["id"],
+                product_name=item["name"],
+                product_price=item["price"],
+                quantity=item["quantity"],
+                total_price=item["price"] * item["quantity"],
+            )
+            order_items.append(order_item)
+            db.session.add(order_item)
+
+        # Create delivery
+        new_delivery = Delivery(
+            order_id=new_order.id,
+            delivery_method=DeliveryMethod[
+                delivery_info.get("deliveryMethod", "STANDARD")
+            ],
+            status=DeliveryStatus.NOT_SHIPPED,
+            tracking_number=str(uuid.uuid4())[:8],  # Generate a simple tracking number
+            estimated_delivery_date=datetime.utcnow()
+            + timedelta(days=3),  # Example estimation
+        )
+        db.session.add(new_delivery)
+
+        # Optional: Clear the user's cart after order placement
+        Cart.query.filter_by(buyer_id=user_id).delete()
+
+        db.session.commit()
+
+        return (
+            jsonify(
+                {
+                    "message": "Order placed successfully",
+                    "order_id": new_order.id,
+                    "tracking_number": new_delivery.tracking_number,
+                }
+            ),
+            201,
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to place order: {str(e)}"}), 500
