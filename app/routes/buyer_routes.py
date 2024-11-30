@@ -426,9 +426,6 @@ def place_order():
             order_items.append(order_item)
         new_delivery = Delivery(
             order_id=new_order.id,
-            name=delivery_info["name"],
-            email=delivery_info["email"],
-            phone_number=delivery_info["phone_number"],
             address=delivery_info["street_address"],
             country=delivery_info["country"],
             delivery_method=DeliveryMethod[delivery_info["delivery_method"].upper()],
