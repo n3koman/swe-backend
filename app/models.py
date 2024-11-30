@@ -200,6 +200,9 @@ class Delivery(db.Model):
     estimated_delivery_date = db.Column(DateTime, nullable=True)
     address = db.Column(String(255), nullable=False)
     country = db.Column(String(100), nullable=False)  # Add this field
+    special_instructions = db.Column(
+        String(255), nullable=True
+    ) 
 
 
 # Resource Model for managing farmer resources
