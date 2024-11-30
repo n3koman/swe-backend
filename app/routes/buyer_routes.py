@@ -344,7 +344,7 @@ def place_order():
     data = request.json
 
     try:
-        # Extract and validate input data
+        # Extract and validate data
         cart_items = data.get("cart_items", [])
         delivery_info = data.get("delivery_info", {})
         total_price = data.get("total_price", 0)
@@ -352,7 +352,7 @@ def place_order():
         if not cart_items:
             return jsonify({"error": "Cart is empty"}), 400
 
-        # Validate required delivery information
+        # Required fields for delivery information
         required_fields = [
             "name",
             "email",
@@ -368,19 +368,21 @@ def place_order():
         if missing_fields:
             return (
                 jsonify(
-                    {"error": f"Missing required fields: {', '.join(missing_fields)}"}
+                    {
+                        "error": f"Missing required delivery fields: {', '.join(missing_fields)}"
+                    }
                 ),
                 400,
             )
 
-        # Create new order
+        # Create a new order
         new_order = Order(
             buyer_id=user_id,
             status=OrderStatus.PLACED,
             total_price=total_price,
         )
         db.session.add(new_order)
-        db.session.flush()  # Populate the order's ID
+        db.session.flush()  # This populates the `id` field for new_order
 
         # Create order items
         for item in cart_items:
@@ -406,8 +408,8 @@ def place_order():
             address=delivery_info["street_address"],
             country=delivery_info["country"],
             delivery_method=DeliveryMethod[
-                delivery_info["delivery_method"]
-            ],  # Enum validation
+                delivery_info["delivery_method"].upper()
+            ],  # Convert method to uppercase for ENUM compatibility
             special_instructions=delivery_info.get("special_instructions", ""),
             status=DeliveryStatus.NOT_SHIPPED,
             tracking_number=str(uuid.uuid4())[:8],
@@ -415,7 +417,7 @@ def place_order():
         )
         db.session.add(new_delivery)
 
-        # Clear the user's cart after order placement
+        # Clear the user's cart after successful order placement
         Cart.query.filter_by(buyer_id=user_id).delete()
 
         db.session.commit()
