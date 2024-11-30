@@ -199,6 +199,7 @@ class Delivery(db.Model):
     tracking_number = db.Column(String(100), nullable=True)
     estimated_delivery_date = db.Column(DateTime, nullable=True)
     address = db.Column(String(255), nullable=False)
+    country = db.Column(String(100), nullable=False)  # Add this field
 
 
 # Resource Model for managing farmer resources
