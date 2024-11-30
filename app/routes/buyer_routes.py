@@ -344,7 +344,7 @@ def place_order():
     data = request.json
 
     try:
-        # Validate input data
+        # Extract and validate input data
         cart_items = data.get("cart_items", [])
         delivery_info = data.get("delivery_info", {})
         total_price = data.get("total_price", 0)
@@ -357,7 +357,7 @@ def place_order():
             "name",
             "email",
             "phone_number",
-            "address",
+            "street_address",
             "country",
             "delivery_method",
         ]
@@ -375,36 +375,39 @@ def place_order():
 
         # Create new order
         new_order = Order(
-            buyer_id=user_id, status=OrderStatus.PLACED, total_price=total_price
+            buyer_id=user_id,
+            status=OrderStatus.PLACED,
+            total_price=total_price,
         )
         db.session.add(new_order)
-        db.session.flush()  # This will populate the order's ID
+        db.session.flush()  # Populate the order's ID
 
         # Create order items
-        order_items = []
         for item in cart_items:
+            if not all(k in item for k in ["id", "name", "price", "quantity"]):
+                return jsonify({"error": "Invalid cart item format"}), 400
+
             order_item = OrderItem(
                 order_id=new_order.id,
-                product_id=item.get("id"),
-                product_name=item.get("name"),
-                product_price=item.get("price"),
-                quantity=item.get("quantity"),
-                total_price=item.get("price") * item.get("quantity"),
+                product_id=item["id"],
+                product_name=item["name"],
+                product_price=item["price"],
+                quantity=item["quantity"],
+                total_price=item["price"] * item["quantity"],
             )
-            order_items.append(order_item)
             db.session.add(order_item)
 
         # Create delivery information
         new_delivery = Delivery(
             order_id=new_order.id,
-            name=delivery_info.get("name"),
-            email=delivery_info.get("email"),
-            phone_number=delivery_info.get("phone_number"),
-            address=delivery_info.get("address"),
-            country=delivery_info.get("country"),
+            name=delivery_info["name"],
+            email=delivery_info["email"],
+            phone_number=delivery_info["phone_number"],
+            address=delivery_info["street_address"],
+            country=delivery_info["country"],
             delivery_method=DeliveryMethod[
-                delivery_info.get("delivery_method", "HOME_DELIVERY")
-            ],
+                delivery_info["delivery_method"]
+            ],  # Enum validation
             special_instructions=delivery_info.get("special_instructions", ""),
             status=DeliveryStatus.NOT_SHIPPED,
             tracking_number=str(uuid.uuid4())[:8],
@@ -412,7 +415,7 @@ def place_order():
         )
         db.session.add(new_delivery)
 
-        # Optional: Clear the user's cart after order placement
+        # Clear the user's cart after order placement
         Cart.query.filter_by(buyer_id=user_id).delete()
 
         db.session.commit()
