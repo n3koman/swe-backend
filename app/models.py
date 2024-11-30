@@ -30,9 +30,9 @@ class OrderStatus(enum.Enum):
 
 
 class DeliveryMethod(enum.Enum):
-    HOME_DELIVERY = "home_delivery"
-    PICKUP_POINT = "pickup_point"
-    THIRD_PARTY = "third_party"
+    HOME_DELIVERY = "HOME_DELIVERY"
+    PICKUP_POINT = "PICKUP_POINT"
+    THIRD_PARTY = "THIRD_PARTY"
 
 
 class DeliveryStatus(enum.Enum):
@@ -190,14 +190,31 @@ class OrderItem(db.Model):
 # Delivery Model for delivery tracking
 class Delivery(db.Model):
     __tablename__ = "deliveries"
-    id = db.Column(Integer, primary_key=True)
-    order_id = db.Column(Integer, db.ForeignKey("orders.id"), nullable=False)
-    delivery_method = db.Column(Enum(DeliveryMethod), nullable=False)
-    status = db.Column(
-        Enum(DeliveryStatus), default=DeliveryStatus.NOT_SHIPPED, nullable=False
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("orders.id"), nullable=False)
+
+    # Delivery information fields matching frontend
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    phone_number = db.Column(db.String(15), nullable=False)
+    address = db.Column(db.String(255), nullable=False)
+    country = db.Column(db.String(100), nullable=False)
+
+    delivery_method = db.Column(
+        db.Enum(DeliveryMethod), nullable=False, default=DeliveryMethod.HOME_DELIVERY
     )
-    tracking_number = db.Column(String(100), nullable=True)
-    estimated_delivery_date = db.Column(DateTime, nullable=True)
+    special_instructions = db.Column(db.Text, nullable=True)
+
+    # Existing delivery tracking fields
+    status = db.Column(
+        db.Enum(DeliveryStatus), nullable=False, default=DeliveryStatus.NOT_SHIPPED
+    )
+    tracking_number = db.Column(db.String(50), unique=True)
+    estimated_delivery_date = db.Column(db.DateTime)
+
+    # Relationship to order
+    order = db.relationship("Order", backref=db.backref("delivery", uselist=False))
 
 
 # Resource Model for managing farmer resources

@@ -1,6 +1,18 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Buyer, Order, Farmer, Product, Cart, OrderItem, OrderStatus, Delivery, DeliveryMethod, DeliveryStatus, db
+from app.models import (
+    Buyer,
+    Order,
+    Farmer,
+    Product,
+    Cart,
+    OrderItem,
+    OrderStatus,
+    Delivery,
+    DeliveryMethod,
+    DeliveryStatus,
+    db,
+)
 from sqlalchemy.exc import IntegrityError
 import re
 import base64
@@ -340,6 +352,27 @@ def place_order():
         if not cart_items:
             return jsonify({"error": "Cart is empty"}), 400
 
+        # Validate required delivery information
+        required_fields = [
+            "name",
+            "email",
+            "phone_number",
+            "address",
+            "country",
+            "delivery_method",
+        ]
+        missing_fields = [
+            field for field in required_fields if not delivery_info.get(field)
+        ]
+
+        if missing_fields:
+            return (
+                jsonify(
+                    {"error": f"Missing required fields: {', '.join(missing_fields)}"}
+                ),
+                400,
+            )
+
         # Create new order
         new_order = Order(
             buyer_id=user_id, status=OrderStatus.PLACED, total_price=total_price
@@ -352,25 +385,30 @@ def place_order():
         for item in cart_items:
             order_item = OrderItem(
                 order_id=new_order.id,
-                product_id=item["id"],
-                product_name=item["name"],
-                product_price=item["price"],
-                quantity=item["quantity"],
-                total_price=item["price"] * item["quantity"],
+                product_id=item.get("id"),
+                product_name=item.get("name"),
+                product_price=item.get("price"),
+                quantity=item.get("quantity"),
+                total_price=item.get("price") * item.get("quantity"),
             )
             order_items.append(order_item)
             db.session.add(order_item)
 
-        # Create delivery
+        # Create delivery information
         new_delivery = Delivery(
             order_id=new_order.id,
+            name=delivery_info.get("name"),
+            email=delivery_info.get("email"),
+            phone_number=delivery_info.get("phone_number"),
+            address=delivery_info.get("address"),
+            country=delivery_info.get("country"),
             delivery_method=DeliveryMethod[
-                delivery_info.get("deliveryMethod", "STANDARD")
+                delivery_info.get("delivery_method", "HOME_DELIVERY")
             ],
+            special_instructions=delivery_info.get("special_instructions", ""),
             status=DeliveryStatus.NOT_SHIPPED,
-            tracking_number=str(uuid.uuid4())[:8],  # Generate a simple tracking number
-            estimated_delivery_date=datetime.utcnow()
-            + timedelta(days=3),  # Example estimation
+            tracking_number=str(uuid.uuid4())[:8],
+            estimated_delivery_date=datetime.utcnow() + timedelta(days=3),
         )
         db.session.add(new_delivery)
 
@@ -392,4 +430,4 @@ def place_order():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Failed to place order: {str(e)}"}), 500
+        return jsonify({"error": "Failed to place order", "details": str(e)}), 500
