@@ -344,6 +344,9 @@ def place_order():
     data = request.json
 
     try:
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
         # Extract and validate data
         cart_items = data.get("cart_items", [])
         delivery_info = data.get("delivery_info", {})
@@ -351,6 +354,18 @@ def place_order():
 
         if not cart_items:
             return jsonify({"error": "Cart is empty"}), 400
+
+        for item in cart_items:
+            if not all(k in item for k in ["id", "name", "price", "quantity"]):
+                return (
+                    jsonify(
+                        {
+                            "error": "Invalid cart item format",
+                            "details": f"Missing fields in item: {item}",
+                        }
+                    ),
+                    400,
+                )
 
         # Required fields for delivery information
         required_fields = [
@@ -374,32 +389,41 @@ def place_order():
                 ),
                 400,
             )
+        buyer = Buyer.query.get(user_id)
+        if not buyer:
+            return jsonify({"error": "User not found"}), 404
+
+        # Validate products exist
+        product_ids = [item["id"] for item in cart_items]
+        existing_products = Product.query.filter(Product.id.in_(product_ids)).all()
+        existing_product_ids = {p.id for p in existing_products}
+
+        invalid_products = [
+            item["id"] for item in cart_items if item["id"] not in existing_product_ids
+        ]
+
+        if invalid_products:
+            return jsonify({"error": f"Invalid product IDs: {invalid_products}"}), 400
 
         # Create a new order
         new_order = Order(
-            buyer_id=user_id,
-            status=OrderStatus.PLACED,
-            total_price=total_price,
+            buyer_id=user_id, status=OrderStatus.PLACED, total_price=float(total_price)
         )
         db.session.add(new_order)
         db.session.flush()  # This populates the `id` field for new_order
 
-        # Create order items
+        order_items = []
         for item in cart_items:
-            if not all(k in item for k in ["id", "name", "price", "quantity"]):
-                return jsonify({"error": "Invalid cart item format"}), 400
-
             order_item = OrderItem(
                 order_id=new_order.id,
                 product_id=item["id"],
                 product_name=item["name"],
-                product_price=item["price"],
-                quantity=item["quantity"],
-                total_price=item["price"] * item["quantity"],
+                product_price=float(item["price"]),
+                quantity=int(item["quantity"]),
+                total_price=float(item["price"] * item["quantity"]),
             )
             db.session.add(order_item)
-
-        # Create delivery information
+            order_items.append(order_item)
         new_delivery = Delivery(
             order_id=new_order.id,
             name=delivery_info["name"],
@@ -407,9 +431,7 @@ def place_order():
             phone_number=delivery_info["phone_number"],
             address=delivery_info["street_address"],
             country=delivery_info["country"],
-            delivery_method=DeliveryMethod[
-                delivery_info["delivery_method"].upper()
-            ],  # Convert method to uppercase for ENUM compatibility
+            delivery_method=DeliveryMethod[delivery_info["delivery_method"].upper()],
             special_instructions=delivery_info.get("special_instructions", ""),
             status=DeliveryStatus.NOT_SHIPPED,
             tracking_number=str(uuid.uuid4())[:8],
@@ -417,7 +439,6 @@ def place_order():
         )
         db.session.add(new_delivery)
 
-        # Clear the user's cart after successful order placement
         Cart.query.filter_by(buyer_id=user_id).delete()
 
         db.session.commit()
@@ -434,5 +455,6 @@ def place_order():
         )
 
     except Exception as e:
+        # Rollback the transaction in case of any error
         db.session.rollback()
         return jsonify({"error": "Failed to place order", "details": str(e)}), 500
