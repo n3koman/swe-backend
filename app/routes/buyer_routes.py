@@ -667,3 +667,17 @@ def list_chats():
     ]
 
     return jsonify({"chats": chat_list}), 200
+
+
+@buyer_bp.route("/farmers", methods=["GET"])
+@jwt_required()
+def get_farmers():
+    """
+    Retrieve a list of all farmers.
+    """
+    try:
+        farmers = Farmer.query.all()
+        farmer_list = [{"id": farmer.id, "name": farmer.name} for farmer in farmers]
+        return jsonify({"users": farmer_list}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch farmers: {str(e)}"}), 500

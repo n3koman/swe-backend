@@ -603,3 +603,17 @@ def send_message(chat_id):
     db.session.commit()
 
     return jsonify(message.to_dict()), 201
+
+
+@farmer_bp.route("/buyers", methods=["GET"])
+@jwt_required()
+def get_buyers():
+    """
+    Retrieve a list of all buyers.
+    """
+    try:
+        buyers = Buyer.query.all()
+        buyer_list = [{"id": buyer.id, "name": buyer.name} for buyer in buyers]
+        return jsonify({"users": buyer_list}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch buyers: {str(e)}"}), 500
