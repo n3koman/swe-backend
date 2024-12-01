@@ -1,6 +1,15 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Farmer, Resource, Product, ProductImage, Order, OrderItem, db
+from app.models import (
+    Farmer,
+    Resource,
+    Product,
+    ProductImage,
+    Order,
+    OrderItem,
+    OrderStatus,
+    db,
+)
 from sqlalchemy.exc import IntegrityError
 import re
 import base64
@@ -466,4 +475,47 @@ def get_farmer_orders():
 
     except Exception as e:
         print(f"Error in get_farmer_orders: {e}")
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+
+
+@farmer_bp.route("/orders/<int:order_id>/status", methods=["PATCH"])
+@jwt_required()
+def update_order_status(order_id):
+    """
+    Update the status of an order that includes products sold by the logged-in farmer.
+    """
+    try:
+        farmer_id = get_jwt_identity()
+        
+        # Ensure the user is a farmer
+        farmer = Farmer.query.get(farmer_id)
+        if not farmer:
+            return jsonify({"error": "Unauthorized access"}), 403
+        
+        data = request.get_json()
+        new_status = data.get("status")
+        
+        if not new_status or new_status not in OrderStatus.__members__:
+            return jsonify({"error": "Invalid order status"}), 400
+        
+        # Fetch the order
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({"error": "Order not found"}), 404
+        
+        # Ensure the order contains products sold by the farmer
+        farmer_product_ids = [product.id for product in Product.query.filter_by(farmer_id=farmer_id).all()]
+        order_product_ids = [item.product_id for item in order.order_items]
+        
+        if not any(pid in farmer_product_ids for pid in order_product_ids):
+            return jsonify({"error": "Unauthorized to update this order"}), 403
+        
+        # Update the status
+        order.status = OrderStatus[new_status]
+        db.session.commit()
+        
+        return jsonify({"message": "Order status updated successfully", "order_id": order.id}), 200
+
+    except Exception as e:
+        print(f"Error in update_order_status: {e}")
         return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
