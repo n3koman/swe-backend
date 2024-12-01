@@ -137,7 +137,6 @@ def get_products_with_images():
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
 
-
 @admin_bp.route("/orders", methods=["GET"])
 @jwt_required()
 def get_orders():
@@ -154,7 +153,7 @@ def get_orders():
             {
                 "id": order.id,
                 "buyer_id": order.buyer_id,
-                "status": order.status,
+                "status": order.status.value,  # Convert Enum to string
                 "total_price": order.total_price,
                 "created_at": order.created_at.isoformat(),
             }
