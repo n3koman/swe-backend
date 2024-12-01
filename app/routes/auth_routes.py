@@ -154,14 +154,9 @@ def login():
             algorithm="HS256",
         )
 
-        # Include role in the response
+        # Return role with token
         return (
-            jsonify(
-                {
-                    "token": token,
-                    "role": user.role,  # Assuming 'role' is a column in your User model
-                }
-            ),
+            jsonify({"token": token, "role": user.role.value}),  # Access Enum value
             200,
         )
     else:
