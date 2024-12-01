@@ -338,15 +338,15 @@ def delete_from_cart():
 @jwt_required()
 def place_order():
     """
-    Create a new order with order items and delivery information
+    Create a new order with order items and delivery information, and adjust product stock
     """
     user_id = get_jwt_identity()
     data = request.json
 
     try:
-
         if not data:
             return jsonify({"error": "No data provided"}), 400
+
         # Extract and validate data
         cart_items = data.get("cart_items", [])
         delivery_info = data.get("delivery_info", {})
@@ -389,31 +389,60 @@ def place_order():
                 ),
                 400,
             )
+
         buyer = Buyer.query.get(user_id)
         if not buyer:
             return jsonify({"error": "User not found"}), 404
 
         # Validate products exist
         product_ids = [item["id"] for item in cart_items]
-        existing_products = Product.query.filter(Product.id.in_(product_ids)).all()
-        existing_product_ids = {p.id for p in existing_products}
+        products = Product.query.filter(Product.id.in_(product_ids)).all()
+        product_map = {product.id: product for product in products}
 
         invalid_products = [
-            item["id"] for item in cart_items if item["id"] not in existing_product_ids
+            item["id"] for item in cart_items if item["id"] not in product_map
         ]
 
         if invalid_products:
             return jsonify({"error": f"Invalid product IDs: {invalid_products}"}), 400
+
+        # Check product availability
+        unavailable_products = [
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "requested_quantity": item["quantity"],
+                "available_stock": product_map[item["id"]].stock,
+            }
+            for item in cart_items
+            if product_map[item["id"]].stock < item["quantity"]
+        ]
+
+        if unavailable_products:
+            return (
+                jsonify(
+                    {
+                        "error": "Some products are unavailable in the requested quantity.",
+                        "details": unavailable_products,
+                    }
+                ),
+                400,
+            )
 
         # Create a new order
         new_order = Order(
             buyer_id=user_id, status=OrderStatus.PLACED, total_price=float(total_price)
         )
         db.session.add(new_order)
-        db.session.flush()  # This populates the `id` field for new_order
+        db.session.flush()  # Populate `id` for new_order
 
+        # Create order items and adjust product stock
         order_items = []
         for item in cart_items:
+            product = product_map[item["id"]]
+            product.stock -= item["quantity"]  # Reduce the product stock
+            db.session.add(product)  # Update the product in the database
+
             order_item = OrderItem(
                 order_id=new_order.id,
                 product_id=item["id"],
@@ -424,6 +453,8 @@ def place_order():
             )
             db.session.add(order_item)
             order_items.append(order_item)
+
+        # Create delivery information
         new_delivery = Delivery(
             order_id=new_order.id,
             address=delivery_info["street_address"],
@@ -436,6 +467,7 @@ def place_order():
         )
         db.session.add(new_delivery)
 
+        # Clear buyer's cart
         Cart.query.filter_by(buyer_id=user_id).delete()
 
         db.session.commit()
@@ -452,8 +484,8 @@ def place_order():
         )
 
     except Exception as e:
-        # Rollback the transaction in case of any error
-        db.session.rollback()
+        db.session.rollback()  # Rollback the transaction in case of any error
+        print(f"Error in place_order: {e}")
         return jsonify({"error": "Failed to place order", "details": str(e)}), 500
 
 
