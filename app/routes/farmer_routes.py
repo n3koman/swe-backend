@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Farmer, Resource, Product, ProductImage, db
+from app.models import Farmer, Resource, Product, ProductImage, Order, OrderItem, db
 from sqlalchemy.exc import IntegrityError
 import re
 import base64
@@ -355,32 +355,6 @@ def update_product(product_id):
         db.session.rollback()
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
-    """
-    Update an existing product listing.
-    """
-    try:
-        user_id = get_jwt_identity()
-        product = Product.query.filter_by(id=product_id, farmer_id=user_id).first()
-        if not product:
-            return jsonify({"error": "Product not found or unauthorized access"}), 404
-
-        data = request.json
-        product.name = data.get("name", product.name)
-        product.category = data.get("category", product.category)
-        product.price = data.get("price", product.price)
-        product.stock = data.get("stock", product.stock)
-        product.description = data.get("description", product.description)
-
-        if product.price <= 0 or product.stock < 0:
-            return jsonify({"error": "Price and stock must be positive numbers"}), 400
-
-        db.session.commit()
-        return jsonify({"message": "Product updated successfully"}), 200
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
-
 
 @farmer_bp.route("/product/<int:product_id>", methods=["DELETE"])
 @jwt_required()
@@ -401,3 +375,95 @@ def delete_product(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
+
+@farmer_bp.route("/orders", methods=["GET"])
+@jwt_required()
+def get_farmer_orders():
+    """
+    Retrieve all orders that include products sold by the logged-in farmer.
+    """
+    try:
+        # Get the farmer's ID from the JWT
+        farmer_id = get_jwt_identity()
+
+        # Validate that the user is a farmer
+        farmer = Farmer.query.get(farmer_id)
+        if not farmer:
+            return jsonify({"error": "Unauthorized access"}), 403
+
+        # Get all products sold by the farmer
+        farmer_products = Product.query.filter_by(farmer_id=farmer_id).all()
+        product_ids = [product.id for product in farmer_products]
+
+        # Query orders that include the farmer's products
+        orders = (
+            db.session.query(Order)
+            .join(OrderItem)
+            .filter(OrderItem.product_id.in_(product_ids))
+            .distinct()
+            .all()
+        )
+
+        # Serialize the orders with relevant details
+        order_list = [
+            {
+                "order_id": order.id,
+                "buyer_id": order.buyer_id,
+                "status": order.status.value,
+                "total_price": order.total_price,
+                "created_at": order.created_at.isoformat(),
+                "updated_at": (
+                    order.updated_at.isoformat() if order.updated_at else None
+                ),
+                "order_items": [
+                    {
+                        "id": item.id,
+                        "product_id": item.product_id,
+                        "product_name": item.product_name,
+                        "product_price": item.product_price,
+                        "quantity": item.quantity,
+                        "total_price": item.total_price,
+                    }
+                    for item in order.order_items
+                    if item.product_id in product_ids
+                ],
+                "delivery": (
+                    {
+                        "id": order.delivery.id if order.delivery else None,
+                        "delivery_method": (
+                            order.delivery.delivery_method.value
+                            if order.delivery
+                            else None
+                        ),
+                        "status": (
+                            order.delivery.status.value if order.delivery else None
+                        ),
+                        "tracking_number": (
+                            order.delivery.tracking_number if order.delivery else None
+                        ),
+                        "estimated_delivery_date": (
+                            order.delivery.estimated_delivery_date.isoformat()
+                            if order.delivery and order.delivery.estimated_delivery_date
+                            else None
+                        ),
+                        "address": order.delivery.address if order.delivery else None,
+                        "country": order.delivery.country if order.delivery else None,
+                        "special_instructions": (
+                            order.delivery.special_instructions
+                            if order.delivery
+                            else None
+                        ),
+                    }
+                    if order.delivery
+                    else None
+                ),
+            }
+            for order in orders
+        ]
+
+        return jsonify({"orders": order_list}), 200
+
+    except Exception as e:
+        print(f"Error in get_farmer_orders: {e}")
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
