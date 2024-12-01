@@ -455,3 +455,78 @@ def place_order():
         # Rollback the transaction in case of any error
         db.session.rollback()
         return jsonify({"error": "Failed to place order", "details": str(e)}), 500
+
+
+@buyer_bp.route("/orders", methods=["GET"])
+@jwt_required()
+def get_user_orders():
+    """
+    Retrieve all orders for the logged-in buyer, including order items and delivery details.
+    """
+    try:
+        # Get the buyer's ID from the JWT
+        buyer_id = get_jwt_identity()
+
+        # Query orders for the logged-in buyer
+        orders = Order.query.filter_by(buyer_id=buyer_id).all()
+
+        # Serialize order details, including order items and delivery info
+        order_list = [
+            {
+                "id": order.id,
+                "status": order.status.value,
+                "total_price": order.total_price,
+                "created_at": order.created_at.isoformat(),
+                "updated_at": (
+                    order.updated_at.isoformat() if order.updated_at else None
+                ),
+                "order_items": [
+                    {
+                        "id": item.id,
+                        "product_id": item.product_id,
+                        "product_name": item.product_name,
+                        "product_price": item.product_price,
+                        "quantity": item.quantity,
+                        "total_price": item.total_price,
+                    }
+                    for item in order.order_items
+                ],
+                "delivery": (
+                    {
+                        "id": order.delivery.id if order.delivery else None,
+                        "delivery_method": (
+                            order.delivery.delivery_method.value
+                            if order.delivery
+                            else None
+                        ),
+                        "status": (
+                            order.delivery.status.value if order.delivery else None
+                        ),
+                        "tracking_number": (
+                            order.delivery.tracking_number if order.delivery else None
+                        ),
+                        "estimated_delivery_date": (
+                            order.delivery.estimated_delivery_date.isoformat()
+                            if order.delivery and order.delivery.estimated_delivery_date
+                            else None
+                        ),
+                        "address": order.delivery.address if order.delivery else None,
+                        "country": order.delivery.country if order.delivery else None,
+                        "special_instructions": (
+                            order.delivery.special_instructions
+                            if order.delivery
+                            else None
+                        ),
+                    }
+                    if order.delivery
+                    else None
+                ),
+            }
+            for order in orders
+        ]
+
+        return jsonify({"orders": order_list}), 200
+
+    except Exception as e:
+        print(f"Error in get_user_orders: {e}")
+        return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
