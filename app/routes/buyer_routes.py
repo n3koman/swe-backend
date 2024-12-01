@@ -565,54 +565,54 @@ def get_user_orders():
         print(f"Error in get_user_orders: {e}")
         return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
 
-@buyer_bp.route("/start-chat", methods=["POST"])
-@jwt_required()
-def start_chat():
-    data = request.json
-    farmer_id = data.get("farmer_id")
-    buyer_id = get_jwt_identity()
+# @buyer_bp.route("/start-chat", methods=["POST"])
+# @jwt_required()
+# def start_chat():
+#     data = request.json
+#     farmer_id = data.get("farmer_id")
+#     buyer_id = get_jwt_identity()
 
-    # Check if chat already exists
-    chat = Chat.query.filter_by(buyer_id=buyer_id, farmer_id=farmer_id).first()
-    if not chat:
-        chat = Chat(buyer_id=buyer_id, farmer_id=farmer_id)
-        db.session.add(chat)
-        db.session.commit()
+#     # Check if chat already exists
+#     chat = Chat.query.filter_by(buyer_id=buyer_id, farmer_id=farmer_id).first()
+#     if not chat:
+#         chat = Chat(buyer_id=buyer_id, farmer_id=farmer_id)
+#         db.session.add(chat)
+#         db.session.commit()
 
-    return jsonify({"chat_id": chat.id}), 201
+#     return jsonify({"chat_id": chat.id}), 201
 
-@buyer_bp.route("/chat/<int:chat_id>/message", methods=["POST"])
-@jwt_required()
-def send_message(chat_id):
-    data = request.json
-    sender_id = get_jwt_identity()
-    content = data.get("content")
+# @buyer_bp.route("/chat/<int:chat_id>/message", methods=["POST"])
+# @jwt_required()
+# def send_message(chat_id):
+#     data = request.json
+#     sender_id = get_jwt_identity()
+#     content = data.get("content")
 
-    chat = Chat.query.get(chat_id)
-    if not chat:
-        return jsonify({"error": "Chat not found"}), 404
+#     chat = Chat.query.get(chat_id)
+#     if not chat:
+#         return jsonify({"error": "Chat not found"}), 404
 
-    # Ensure the sender is part of the chat
-    if sender_id not in [chat.buyer_id, chat.farmer_id]:
-        return jsonify({"error": "Unauthorized"}), 403
+#     # Ensure the sender is part of the chat
+#     if sender_id not in [chat.buyer_id, chat.farmer_id]:
+#         return jsonify({"error": "Unauthorized"}), 403
 
-    message = Message(chat_id=chat_id, sender_id=sender_id, content=content)
-    db.session.add(message)
-    db.session.commit()
+#     message = Message(chat_id=chat_id, sender_id=sender_id, content=content)
+#     db.session.add(message)
+#     db.session.commit()
 
-    return jsonify(message.to_dict()), 201
+#     return jsonify(message.to_dict()), 201
 
-@buyer_bp.route("/chat/<int:chat_id>/messages", methods=["GET"])
-@jwt_required()
-def get_chat_messages(chat_id):
-    sender_id = get_jwt_identity()
-    chat = Chat.query.get(chat_id)
+# @buyer_bp.route("/chat/<int:chat_id>/messages", methods=["GET"])
+# @jwt_required()
+# def get_chat_messages(chat_id):
+#     sender_id = get_jwt_identity()
+#     chat = Chat.query.get(chat_id)
 
-    if not chat:
-        return jsonify({"error": "Chat not found"}), 404
+#     if not chat:
+#         return jsonify({"error": "Chat not found"}), 404
 
-    if sender_id not in [chat.buyer_id, chat.farmer_id]:
-        return jsonify({"error": "Unauthorized"}), 403
+#     if sender_id not in [chat.buyer_id, chat.farmer_id]:
+#         return jsonify({"error": "Unauthorized"}), 403
 
-    messages = Message.query.filter_by(chat_id=chat_id).order_by(Message.timestamp).all()
-    return jsonify({"messages": [message.to_dict() for message in messages]}), 200
+#     messages = Message.query.filter_by(chat_id=chat_id).order_by(Message.timestamp).all()
+#     return jsonify({"messages": [message.to_dict() for message in messages]}), 200
