@@ -528,3 +528,78 @@ def update_order_status(order_id):
     except Exception as e:
         print(f"Error in update_order_status: {e}")
         return jsonify({"error": "Internal Server Error", "details": str(e)}), 500
+
+
+@farmer_bp.route("/chats", methods=["GET"])
+@jwt_required()
+def list_chats():
+    """
+    List all chats for the authenticated farmer.
+    """
+    farmer_id = get_jwt_identity()
+    chats = Chat.query.filter_by(farmer_id=farmer_id).all()
+
+    chat_list = [
+        {
+            "id": chat.id,
+            "buyer_id": chat.buyer_id,
+            "buyer_name": chat.buyer.name if chat.buyer else "Unknown",
+            "last_message": chat.messages[-1].content if chat.messages else None,
+            "updated_at": chat.updated_at.isoformat() if chat.updated_at else None,
+        }
+        for chat in chats
+    ]
+
+    return jsonify({"chats": chat_list}), 200
+
+
+# Endpoint to fetch messages for a specific chat
+@farmer_bp.route("/chats/<int:chat_id>/messages", methods=["GET"])
+@jwt_required()
+def get_chat_messages(chat_id):
+    """
+    Retrieve all messages for a specific chat.
+    """
+    farmer_id = get_jwt_identity()
+    chat = Chat.query.get(chat_id)
+
+    if not chat:
+        return jsonify({"error": "Chat not found"}), 404
+
+    # Verify that the farmer is part of the chat
+    if chat.farmer_id != farmer_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    messages = (
+        Message.query.filter_by(chat_id=chat_id).order_by(Message.timestamp).all()
+    )
+    return jsonify({"messages": [message.to_dict() for message in messages]}), 200
+
+
+# Endpoint to send a message in a chat
+@farmer_bp.route("/chats/<int:chat_id>/message", methods=["POST"])
+@jwt_required()
+def send_message(chat_id):
+    """
+    Send a message in a specific chat.
+    """
+    farmer_id = get_jwt_identity()
+    data = request.json
+    content = data.get("content")
+
+    if not content:
+        return jsonify({"error": "Message content is required"}), 400
+
+    chat = Chat.query.get(chat_id)
+    if not chat:
+        return jsonify({"error": "Chat not found"}), 404
+
+    # Verify that the farmer is part of the chat
+    if chat.farmer_id != farmer_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    message = Message(chat_id=chat_id, sender_id=farmer_id, content=content)
+    db.session.add(message)
+    db.session.commit()
+
+    return jsonify(message.to_dict()), 201
