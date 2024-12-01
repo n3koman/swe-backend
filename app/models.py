@@ -200,9 +200,7 @@ class Delivery(db.Model):
     estimated_delivery_date = db.Column(DateTime, nullable=True)
     address = db.Column(String(255), nullable=False)
     country = db.Column(String(100), nullable=False)  # Add this field
-    special_instructions = db.Column(
-        String(255), nullable=True
-    ) 
+    special_instructions = db.Column(String(255), nullable=True)
 
 
 # Resource Model for managing farmer resources
@@ -248,4 +246,33 @@ class Cart(db.Model):
                 self.product.farmer.name if self.product.farmer else "Unknown"
             ),
             "total_price": self.quantity * self.product.price,
+        }
+
+
+class Chat(db.Model):
+    __tablename__ = "chats"
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("buyers.id"), nullable=False)
+    farmer_id = db.Column(db.Integer, db.ForeignKey("farmers.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    messages = db.relationship(
+        "Message", backref="chat", lazy=True, cascade="all, delete-orphan"
+    )
+
+
+class Message(db.Model):
+    __tablename__ = "messages"
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey("chats.id"), nullable=False)
+    sender_id = db.Column(db.Integer, nullable=False)  # Either buyer or farmer
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "sender_id": self.sender_id,
+            "content": self.content,
+            "timestamp": self.timestamp.isoformat(),
         }
