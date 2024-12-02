@@ -16,6 +16,7 @@ from app.models import (
     db,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 import re
 import base64
 import difflib
@@ -652,21 +653,38 @@ def list_chats():
     """
     List all chats for the authenticated buyer.
     """
-    buyer_id = get_jwt_identity()
-    chats = Chat.query.filter_by(buyer_id=buyer_id).all()
+    try:
+        buyer_id = get_jwt_identity()
+        print(f"Authenticated Buyer ID: {buyer_id}")  # Debug
 
-    chat_list = [
-        {
-            "id": chat.id,
-            "farmer_id": chat.farmer_id,
-            "farmer_name": chat.farmer.name if chat.farmer else "Unknown",
-            "last_message": chat.messages[-1].content if chat.messages else None,
-            "updated_at": chat.updated_at.isoformat() if chat.updated_at else None,
-        }
-        for chat in chats
-    ]
+        # Fetch chats with farmer and messages eagerly loaded
+        chats = (
+            Chat.query.filter_by(buyer_id=buyer_id)
+            .options(joinedload(Chat.messages), joinedload("farmer"))
+            .all()
+        )
+        print(f"Chats fetched: {len(chats)}")  # Debug
 
-    return jsonify({"chats": chat_list}), 200
+        chat_list = []
+        for chat in chats:
+            farmer_name = chat.farmer.name if chat.farmer else "Unknown"
+            last_message = chat.messages[-1].content if chat.messages else None
+            updated_at = chat.updated_at.isoformat() if chat.updated_at else None
+
+            chat_dict = {
+                "id": chat.id,
+                "farmer_id": chat.farmer_id,
+                "farmer_name": farmer_name,
+                "last_message": last_message,
+                "updated_at": updated_at,
+            }
+            chat_list.append(chat_dict)
+            print(f"Chat added: {chat_dict}")  # Debug
+
+        return jsonify({"chats": chat_list}), 200
+    except Exception as e:
+        print(f"Error in /buyer/chats: {str(e)}")  # Debug
+        return jsonify({"error": "Internal Server Error"}), 500
 
 
 @buyer_bp.route("/farmers", methods=["GET"])
