@@ -655,15 +655,15 @@ def list_chats():
     """
     try:
         buyer_id = get_jwt_identity()
-        print(f"Authenticated Buyer ID: {buyer_id}")  # Debug
+        print(f"Authenticated Buyer ID: {buyer_id}")  # Debug log
 
-        # Fetch chats with farmer and messages eagerly loaded
+        # Use class-bound attributes in joinedload
         chats = (
             Chat.query.filter_by(buyer_id=buyer_id)
-            .options(joinedload(Chat.messages), joinedload("farmer"))
+            .options(joinedload(Chat.messages), joinedload(Chat.farmer))
             .all()
         )
-        print(f"Chats fetched: {len(chats)}")  # Debug
+        print(f"Fetched Chats: {chats}")  # Debug log
 
         chat_list = []
         for chat in chats:
@@ -671,19 +671,19 @@ def list_chats():
             last_message = chat.messages[-1].content if chat.messages else None
             updated_at = chat.updated_at.isoformat() if chat.updated_at else None
 
-            chat_dict = {
+            chat_data = {
                 "id": chat.id,
                 "farmer_id": chat.farmer_id,
                 "farmer_name": farmer_name,
                 "last_message": last_message,
                 "updated_at": updated_at,
             }
-            chat_list.append(chat_dict)
-            print(f"Chat added: {chat_dict}")  # Debug
+            print(f"Chat Data: {chat_data}")  # Debug log
+            chat_list.append(chat_data)
 
         return jsonify({"chats": chat_list}), 200
     except Exception as e:
-        print(f"Error in /buyer/chats: {str(e)}")  # Debug
+        print(f"Error in /buyer/chats: {e}")  # Debug log for errors
         return jsonify({"error": "Internal Server Error"}), 500
 
 
