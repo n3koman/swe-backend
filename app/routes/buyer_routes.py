@@ -678,7 +678,7 @@ def list_chats():
                 "last_message": last_message,
                 "updated_at": updated_at,
             }
-            print(f"Chat Data: {chat_data}")  # Debug log
+            print(f"Chat Data: {chat_data}")  # Debug 
             chat_list.append(chat_data)
 
         return jsonify({"chats": chat_list}), 200
