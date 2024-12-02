@@ -618,3 +618,30 @@ def get_buyers():
         return jsonify({"users": buyer_list}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch buyers: {str(e)}"}), 500
+
+
+@farmer_bp.route("/chats/start", methods=["POST"])
+@jwt_required()
+def start_chat():
+    """
+    Start a chat between the authenticated farmer and a buyer.
+    """
+    farmer_id = get_jwt_identity()
+    data = request.json
+    buyer_id = data.get("buyer_id")
+
+    if not buyer_id:
+        return jsonify({"error": "Buyer ID is required"}), 400
+
+    buyer = Buyer.query.get(buyer_id)
+    if not buyer:
+        return jsonify({"error": "Buyer not found"}), 404
+
+    # Check if a chat already exists
+    chat = Chat.query.filter_by(farmer_id=farmer_id, buyer_id=buyer_id).first()
+    if not chat:
+        chat = Chat(farmer_id=farmer_id, buyer_id=buyer_id)
+        db.session.add(chat)
+        db.session.commit()
+
+    return jsonify({"chat_id": chat.id}), 201
