@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import (
     Buyer,
@@ -22,6 +22,8 @@ import base64
 import difflib
 from datetime import datetime, timedelta
 import uuid
+from io import BytesIO
+import csv
 
 buyer_bp = Blueprint("buyer", __name__)
 
@@ -699,3 +701,57 @@ def get_farmers():
         return jsonify({"users": farmer_list}), 200
     except Exception as e:
         return jsonify({"error": f"Failed to fetch farmers: {str(e)}"}), 500
+
+
+@buyer_bp.route("/report/purchases", methods=["POST"])
+@jwt_required()
+def generate_buyer_report():
+    """
+    Generate purchase report for the buyer based on a date range.
+    """
+    try:
+        user_id = get_jwt_identity()
+        buyer = Buyer.query.get(user_id)
+
+        if not buyer:
+            return jsonify({"error": "Buyer not found"}), 404
+
+        data = request.json
+        start_date = datetime.strptime(data.get("start_date"), "%Y-%m-%d")
+        end_date = datetime.strptime(data.get("end_date"), "%Y-%m-%d")
+        format = data.get("format", "csv")
+
+        # Fetch orders for the buyer
+        orders = Order.query.filter(
+            Order.buyer_id == user_id, Order.created_at.between(start_date, end_date)
+        ).all()
+
+        # Compile purchase data
+        purchase_data = [
+            {
+                "Order ID": order.id,
+                "Date": order.created_at,
+                "Total Price": order.total_price,
+            }
+            for order in orders
+        ]
+
+        # Generate CSV
+        if format == "csv":
+            csv_output = BytesIO()
+            writer = csv.DictWriter(csv_output, fieldnames=purchase_data[0].keys())
+            writer.writeheader()
+            writer.writerows(purchase_data)
+            csv_output.seek(0)
+            return send_file(
+                csv_output,
+                mimetype="text/csv",
+                as_attachment=True,
+                download_name="purchase_report.csv",
+            )
+
+        # Mock PDF (future implementation)
+        return jsonify({"message": "PDF generation is not implemented"}), 501
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
