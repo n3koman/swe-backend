@@ -28,6 +28,7 @@ def create_app():
     from app.routes.buyer_routes import buyer_bp
     from app.routes.admin_routes import admin_bp
     from app.routes.user_routes import user_bp
+    from app.routes.reports_routes import reports_bp
 
     app.register_blueprint(auth_bp, url_prefix="/")
     app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
@@ -35,5 +36,6 @@ def create_app():
     app.register_blueprint(buyer_bp, url_prefix="/buyer")
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(user_bp, url_prefix="/api")
+    app.register_blueprint(reports_bp, url_prefix="/reports")
 
     return app
