@@ -264,6 +264,7 @@ class Chat(db.Model):
 
     # Relationship to farmer
     farmer = db.relationship("Farmer", backref="chats", lazy=True)
+    buyer = db.relationship("Buyer", backref="chats", lazy=True)
 
     def to_dict(self):
         return {
