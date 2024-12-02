@@ -265,6 +265,9 @@ class Chat(db.Model):
     # Relationship to farmer
     farmer = db.relationship("Farmer", backref="chats", lazy=True)
 
+    # Relationship to buyer
+    buyer = db.relationship("Buyer", backref="chats", lazy=True)
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -274,6 +277,7 @@ class Chat(db.Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "messages": [message.to_dict() for message in self.messages],
         }
+
 
 
 class Message(db.Model):
