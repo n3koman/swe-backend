@@ -29,7 +29,7 @@ def create_app():
     from app.routes.admin_routes import admin_bp
     from app.routes.user_routes import user_bp
 
-    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(auth_bp, url_prefix="/")
     app.register_blueprint(dashboard_bp, url_prefix="/dashboard")
     app.register_blueprint(farmer_bp, url_prefix="/farmer")
     app.register_blueprint(buyer_bp, url_prefix="/buyer")
