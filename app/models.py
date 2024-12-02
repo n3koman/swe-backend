@@ -251,33 +251,38 @@ class Cart(db.Model):
 
 class Chat(db.Model):
     __tablename__ = "chats"
-    id = db.Column(Integer, primary_key=True)
-    buyer_id = db.Column(Integer, db.ForeignKey("buyers.id"), nullable=False)
-    farmer_id = db.Column(Integer, db.ForeignKey("farmers.id"), nullable=False)
-    created_at = db.Column(DateTime, default=datetime.utcnow)
-    updated_at = db.Column(DateTime, onupdate=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    buyer_id = db.Column(db.Integer, db.ForeignKey("buyers.id"), nullable=False)
+    farmer_id = db.Column(db.Integer, db.ForeignKey("farmers.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+
+    # Relationship to messages
     messages = db.relationship(
         "Message", backref="chat", lazy=True, cascade="all, delete-orphan"
     )
+
+    # Relationship to farmer
+    farmer = db.relationship("Farmer", backref="chats", lazy=True)
 
     def to_dict(self):
         return {
             "id": self.id,
             "buyer_id": self.buyer_id,
             "farmer_id": self.farmer_id,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "messages": [message.to_dict() for message in self.messages],
         }
 
 
 class Message(db.Model):
     __tablename__ = "messages"
-    id = db.Column(Integer, primary_key=True)
-    chat_id = db.Column(Integer, db.ForeignKey("chats.id"), nullable=False)
-    sender_id = db.Column(Integer, db.ForeignKey("users.id"), nullable=False)
-    content = db.Column(Text, nullable=False)
-    timestamp = db.Column(DateTime, default=datetime.utcnow)
+    id = db.Column(db.Integer, primary_key=True)
+    chat_id = db.Column(db.Integer, db.ForeignKey("chats.id"), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
@@ -285,5 +290,5 @@ class Message(db.Model):
             "chat_id": self.chat_id,
             "sender_id": self.sender_id,
             "content": self.content,
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
